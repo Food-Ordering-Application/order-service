@@ -32,51 +32,51 @@ export default class CreateFakeData implements Seeder {
     const firstOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const secondOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: WAITING_DRIVER,
-    }).createMany(30);
+    }).createMany(10);
     const thirdOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: CHECKING,
-    }).createMany(30);
+    }).createMany(10);
     const fourthOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: PICKING,
-    }).createMany(30);
+    }).createMany(10);
     const fifthOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: DELIVERING,
-    }).createMany(30);
+    }).createMany(10);
     const sixthOrders = await factory(Order)({
       paymentType: COD,
       orderStatus: CANCELLED,
-    }).createMany(30);
+    }).createMany(10);
     const seventhOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const eighthOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const ninethOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const tenthOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const eleventhOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
     const twelvethOrders = await factory(Order)({
       paymentType: PAYPAL,
       orderStatus: DRAFT,
-    }).createMany(30);
+    }).createMany(10);
 
     const orders = [
       ...firstOrders,
@@ -97,7 +97,7 @@ export default class CreateFakeData implements Seeder {
     for (const order of orders) {
       const orderItems = await factory(OrderItem)({
         order: order,
-      }).createMany(5);
+      }).createMany(3);
 
       // Với mỗi OrderItem tạo nhiều OrderItemToppings
       for (const orderItem of orderItems) {
