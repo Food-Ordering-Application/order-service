@@ -22,16 +22,13 @@ export class OrderItem {
   @Column()
   price: number;
 
-  @Column({ nullable: true })
-  discount: number;
-
   @Column()
   quantity: number;
 
-  @Column()
-  note: string;
+  @Column({ nullable: true, default: 0 })
+  discount: number;
 
-  @Column({ enum: State })
+  @Column({ enum: State, default: State.IN_STOCK })
   state: string;
 
   @OneToMany(

@@ -16,7 +16,7 @@ export class OrderItemTopping {
   @Column({ nullable: true })
   price: number;
 
-  @Column({ enum: State })
+  @Column({ enum: State, nullable: true, default: State.IN_STOCK })
   state: string;
 
   @ManyToOne(() => OrderItem, (orderItem) => orderItem.orderItemToppings)

@@ -1,5 +1,5 @@
 {
-  "name": "order-service",
+  "name": "authenticate-service",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -38,6 +38,7 @@
     "@nestjs/typeorm": "^7.1.5",
     "amqp-connection-manager": "^3.2.2",
     "amqplib": "^0.7.1",
+    "class-validator": "^0.13.1",
     "joi": "^17.4.0",
     "lodash": "^4.17.21",
     "pg": "^8.6.0",

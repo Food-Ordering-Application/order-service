@@ -8,6 +8,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { PType } from '../enums';
 import { OrderStatus, PaymentType } from './index';
 import { OrderItem } from './order-item.entity';
 
@@ -31,10 +32,10 @@ export class Order {
   @Column({ nullable: true })
   itemDiscount: number;
 
-  @Column({ nullable: true })
+  @Column({ default: 15000, nullable: true })
   shippingFee: number;
 
-  @Column({ nullable: true })
+  @Column({ default: 2000, nullable: true })
   serviceFee: number;
 
   @Column({ nullable: true })
@@ -49,7 +50,7 @@ export class Order {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column()
+  @Column({ nullable: true })
   deliveredAt: Date;
 
   @ManyToOne(() => PaymentType, (paymentType) => paymentType.orders)

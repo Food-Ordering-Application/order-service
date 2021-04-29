@@ -1,35 +1,61 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import {
+  AddNewItemToOrderDto,
+  CreateOrderDto,
+  GetOrderAssociatedWithCusAndResDto,
+  IncreaseOrderItemQuantityDto,
+  ReduceOrderItemQuantityDto,
+} from './dto';
+import { ICreateOrderResponse } from './interfaces';
 
 @Controller()
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @MessagePattern('createOrder')
-  create(@Payload() createOrderDto: CreateOrderDto) {
-    return this.orderService.create(createOrderDto);
+  @MessagePattern('createOrderAndFirstOrderItem')
+  async createOrderAndFirstOrderItem(
+    @Payload() createOrderDto: CreateOrderDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.createOrderAndFirstOrderItem(createOrderDto);
   }
 
-  @MessagePattern('findAllOrder')
-  findAll() {
-    return this.orderService.findAll();
+  @MessagePattern('getOrderAssociatedWithCusAndRes')
+  async getOrderAssociatedWithCusAndRes(
+    @Payload()
+    getOrderAssociatedWithCusAndResDto: GetOrderAssociatedWithCusAndResDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.getOrderAssociatedWithCusAndRes(
+      getOrderAssociatedWithCusAndResDto,
+    );
   }
 
-  @MessagePattern('findOneOrder')
-  findOne(@Payload() id: number) {
-    return this.orderService.findOne(id);
+  @MessagePattern('addNewItemToOrder')
+  async addNewItemToOrder(
+    @Payload()
+    addNewItemToOrder: AddNewItemToOrderDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.addNewItemToOrder(addNewItemToOrder);
   }
 
-  @MessagePattern('updateOrder')
-  update(@Payload() updateOrderDto: UpdateOrderDto) {
-    return this.orderService.update(updateOrderDto.id, updateOrderDto);
+  @MessagePattern('reduceOrderItemQuantity')
+  async reduceOrderItemQuantity(
+    @Payload()
+    reduceOrderItemQuantityDto: ReduceOrderItemQuantityDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.reduceOrderItemQuantity(
+      reduceOrderItemQuantityDto,
+    );
   }
 
-  @MessagePattern('removeOrder')
-  remove(@Payload() id: number) {
-    return this.orderService.remove(id);
+  @MessagePattern('increaseOrderItemQuantity')
+  async increaseOrderItemQuantity(
+    @Payload()
+    increaseOrderItemQuantityDto: IncreaseOrderItemQuantityDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.increaseOrderItemQuantity(
+      increaseOrderItemQuantityDto,
+    );
   }
 }
