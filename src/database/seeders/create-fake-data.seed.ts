@@ -13,22 +13,22 @@ export default class CreateFakeData implements Seeder {
     const draftOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.DRAFT,
-    }).createMany(3);
+    }).createMany(10);
     const orderedOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.ORDERED,
-    }).createMany(3);
+    }).createMany(10);
     const completedOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.COMPLETED,
-    }).createMany(6);
+    }).createMany(20);
     const cancelledOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.CANCELLED,
-    }).createMany(3);
+    }).createMany(10);
 
     // ORDERED và 30 order COMPLETED tạo DELIVERY
-    const combineOrders = [...orderedOrders, ...completedOrders.slice(0, 3)];
+    const combineOrders = [...orderedOrders, ...completedOrders.slice(0, 10)];
 
     for (const order of combineOrders) {
       await factory(Delivery)({
@@ -56,7 +56,7 @@ export default class CreateFakeData implements Seeder {
       for (const orderItem of orderItems) {
         await factory(OrderItemTopping)({
           orderItem: orderItem,
-        }).createMany(1);
+        }).create();
       }
     }
   }
