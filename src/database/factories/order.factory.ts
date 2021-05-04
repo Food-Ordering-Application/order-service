@@ -1,11 +1,11 @@
 import { define } from 'typeorm-seeding';
 import Faker from 'faker';
-import { Order, OrderStatus, PaymentType } from '../../order/entities';
+import { Order } from '../../order/entities';
 import * as _ from 'lodash';
 
 interface Context {
-  paymentType: PaymentType;
-  orderStatus: OrderStatus;
+  paymentType: string;
+  orderStatus: string;
 }
 
 define(Order, (faker: typeof Faker, context: Context) => {

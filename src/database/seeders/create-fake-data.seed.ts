@@ -1,103 +1,56 @@
 import {
+  Delivery,
   Order,
   OrderItem,
   OrderItemTopping,
-  OrderStatus,
-  PaymentType,
 } from '../../order/entities';
 import { Factory, Seeder } from 'typeorm-seeding';
-import { PType, Status } from '../../order/enums';
+import { PType, OrdStatus, DeliveryStatus } from '../../order/enums';
+import * as _ from 'lodash';
 
 export default class CreateFakeData implements Seeder {
   public async run(factory: Factory): Promise<any> {
-    const COD = await factory(PaymentType)().create({ name: PType.COD });
-    const PAYPAL = await factory(PaymentType)().create({ name: PType.PAYPAL });
-    const DRAFT = await factory(OrderStatus)().create({ name: Status.DRAFT });
-    const WAITING_DRIVER = await factory(OrderStatus)().create({
-      name: Status.WAITING_DRIVER,
-    });
-    const CHECKING = await factory(OrderStatus)().create({
-      name: Status.CHECKING,
-    });
-    const PICKING = await factory(OrderStatus)().create({
-      name: Status.PICKING,
-    });
-    const DELIVERING = await factory(OrderStatus)().create({
-      name: Status.DELIVERING,
-    });
-    const CANCELLED = await factory(OrderStatus)().create({
-      name: Status.CANCELLED,
-    });
+    const draftOrders = await factory(Order)({
+      paymentType: PType.COD,
+      orderStatus: OrdStatus.DRAFT,
+    }).createMany(30);
+    const orderedOrders = await factory(Order)({
+      paymentType: PType.COD,
+      orderStatus: OrdStatus.ORDERED,
+    }).createMany(30);
+    const completedOrders = await factory(Order)({
+      paymentType: PType.COD,
+      orderStatus: OrdStatus.COMPLETED,
+    }).createMany(60);
+    const cancelledOrders = await factory(Order)({
+      paymentType: PType.COD,
+      orderStatus: OrdStatus.CANCELLED,
+    }).createMany(30);
 
-    const firstOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const secondOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: WAITING_DRIVER,
-    }).createMany(10);
-    const thirdOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: CHECKING,
-    }).createMany(10);
-    const fourthOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: PICKING,
-    }).createMany(10);
-    const fifthOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: DELIVERING,
-    }).createMany(10);
-    const sixthOrders = await factory(Order)({
-      paymentType: COD,
-      orderStatus: CANCELLED,
-    }).createMany(10);
-    const seventhOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const eighthOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const ninethOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const tenthOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const eleventhOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
-    const twelvethOrders = await factory(Order)({
-      paymentType: PAYPAL,
-      orderStatus: DRAFT,
-    }).createMany(10);
+    // ORDERED và 30 order COMPLETED tạo DELIVERY
+    const combineOrders = [...orderedOrders, ...completedOrders.slice(0, 30)];
+
+    for (const order of combineOrders) {
+      await factory(Delivery)({
+        order: order,
+        deliveryStatus: _.sample(
+          Object.values(DeliveryStatus),
+        ) as DeliveryStatus,
+      }).create();
+    }
 
     const orders = [
-      ...firstOrders,
-      ...secondOrders,
-      ...thirdOrders,
-      ...fourthOrders,
-      ...fifthOrders,
-      ...sixthOrders,
-      ...seventhOrders,
-      ...eighthOrders,
-      ...ninethOrders,
-      ...tenthOrders,
-      ...eleventhOrders,
-      ...twelvethOrders,
+      ...draftOrders,
+      ...orderedOrders,
+      ...completedOrders,
+      ...cancelledOrders,
     ];
 
     // Với mỗi Order tạo nhiều OrderItems
     for (const order of orders) {
       const orderItems = await factory(OrderItem)({
         order: order,
-      }).createMany(3);
+      }).createMany(5);
 
       // Với mỗi OrderItem tạo nhiều OrderItemToppings
       for (const orderItem of orderItems) {

@@ -7,3 +7,4 @@ export { AddNewItemToOrderDto } from './add-new-orderitem-to-order.dto';
 export { AddNewItemToOrderResponseDto } from './add-new-orderitem-to-order-response.dto';
 export { ReduceOrderItemQuantityDto } from './reduce-orderitem-quantity.dto';
 export { IncreaseOrderItemQuantityDto } from './increase-orderitem-quantity.dto';
+export { RemoveOrderItemDto } from './remove-order-item.dto';

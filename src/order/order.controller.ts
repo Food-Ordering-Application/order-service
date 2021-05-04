@@ -7,6 +7,7 @@ import {
   GetOrderAssociatedWithCusAndResDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
+  RemoveOrderItemDto,
 } from './dto';
 import { ICreateOrderResponse } from './interfaces';
 
@@ -57,5 +58,13 @@ export class OrderController {
     return this.orderService.increaseOrderItemQuantity(
       increaseOrderItemQuantityDto,
     );
+  }
+
+  @MessagePattern('removeOrderItem')
+  async removeOrderItem(
+    @Payload()
+    removeOrderItemDto: RemoveOrderItemDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.removeOrderItem(removeOrderItemDto);
   }
 }

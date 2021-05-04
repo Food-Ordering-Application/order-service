@@ -19,12 +19,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         synchronize: true,
         seeds: [__dirname + '/seeders/**/*{.ts,.js}'],
         factories: [__dirname + '/factories/**/*{.ts,.js}'],
-        ssl: true,
-        extra: {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        },
       }),
     }),
   ],

@@ -5,7 +5,6 @@ COPY package*.json ./
 RUN npm install --development
 COPY . .
 COPY ./default.env ./.env
-RUN npm run db:setup
 RUN npm run build
 
 

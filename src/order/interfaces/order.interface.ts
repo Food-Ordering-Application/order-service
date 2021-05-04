@@ -1,5 +1,4 @@
-import { IOrderStatus, IPaymentType, IOrderItem } from './index';
-
+import { IOrderItem } from './index';
 export interface IOrder {
   id: string;
   customerId?: string;
@@ -12,8 +11,8 @@ export interface IOrder {
   serviceFee?: number;
   promoId?: string;
   discount?: number;
-  paymentType?: IPaymentType;
-  status?: IOrderStatus;
+  paymentType?: string;
+  status?: string;
   note?: string;
   createdAt?: Date;
   updatedAt?: Date;
