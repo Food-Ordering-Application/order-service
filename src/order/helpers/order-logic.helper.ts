@@ -98,8 +98,8 @@ export const calculateSubTotal = (orderItems: OrderItem[]): number => {
 //   return subTotal + serviceFee + shippingFee;
 // };
 export const calculateGrandTotal = (order: Order): number => {
-  const { subTotal, serviceFee, shippingFee } = order;
-  return subTotal + serviceFee + shippingFee;
+  const { subTotal, serviceFee } = order;
+  return subTotal + serviceFee;
 };
 
 export const findOrderItem = (

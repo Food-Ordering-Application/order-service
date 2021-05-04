@@ -17,10 +17,7 @@ export class Order {
   id: string;
 
   @Column({ nullable: true })
-  customerId: string;
-
-  @Column({ nullable: true })
-  driverId: string;
+  cashierId: string;
 
   @Column({ nullable: true })
   restaurantId: string;
@@ -30,9 +27,6 @@ export class Order {
 
   @Column({ nullable: true })
   itemDiscount: number;
-
-  @Column({ default: 15000, nullable: true })
-  shippingFee: number;
 
   @Column({ default: 2000, nullable: true })
   serviceFee: number;
@@ -48,9 +42,6 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @Column({ nullable: true })
-  deliveredAt: Date;
 
   @Column({ enum: PType })
   paymentType: string;

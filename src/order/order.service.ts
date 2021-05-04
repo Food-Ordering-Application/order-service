@@ -9,8 +9,8 @@ import {
   RemoveOrderItemDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Order, OrderItem, OrderItemTopping } from './entities';
-import { PType, OrdStatus } from './enums';
+import { Delivery, Order, OrderItem, OrderItemTopping } from './entities';
+import { PType, OrdStatus, DeliveryStatus } from './enums';
 import { ICreateOrderResponse } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
@@ -25,6 +25,8 @@ export class OrderService {
   private readonly logger = new Logger('OrderService');
 
   constructor(
+    @InjectRepository(Delivery)
+    private deliveryRepository: Repository<Delivery>,
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
@@ -36,10 +38,9 @@ export class OrderService {
   async createOrderAndFirstOrderItem(
     createOrderDto: CreateOrderDto,
   ): Promise<ICreateOrderResponse> {
-    const { orderItem, restaurantId, customerId } = createOrderDto;
+    const { orderItem, restaurantId, customerId, cashierId } = createOrderDto;
     try {
       // Tạo và lưu orderItem
-      console.log(orderItem);
       const {
         addOrderItems,
         totalPriceToppings,
@@ -48,21 +49,35 @@ export class OrderService {
         this.orderItemToppingRepository,
         this.orderItemRepository,
       );
-      console.log('HERE');
+
       // Tạo và lưu order
       const order = new Order();
-      order.customerId = customerId;
       order.restaurantId = restaurantId;
       // paymentType mặc định là COD, status là DRAFT
       order.paymentType = PType.COD;
       order.status = OrdStatus.DRAFT;
       order.orderItems = addOrderItems;
       order.serviceFee = 2000;
-      order.shippingFee = 15000;
       order.subTotal =
         (orderItem.price + totalPriceToppings) * orderItem.quantity;
-      order.grandTotal = order.serviceFee + order.shippingFee + order.subTotal;
+      order.grandTotal = order.serviceFee + order.subTotal;
       await this.orderRepository.save(order);
+
+      // Nếu là order bên salechannel thì có customerId
+      if (customerId) {
+        // Tạo và lưu delivery
+        const delivery = new Delivery();
+        delivery.customerId = customerId;
+        delivery.status = DeliveryStatus.WAITING_DRIVER;
+        delivery.shippingFee = 15000;
+        delivery.total = order.grandTotal + delivery.shippingFee;
+        await this.deliveryRepository.save(delivery);
+      } else {
+        // Nếu là order bên POS thì có cashierId
+        order.cashierId = cashierId;
+        await this.orderRepository.save(order);
+      }
+
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
