@@ -351,6 +351,7 @@ export class OrderService {
       // Tìm lại order với orderId
       const order = await this.orderRepository
         .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
@@ -376,12 +377,21 @@ export class OrderService {
       // Nếu như order không còn orderItem nào thì xóa order
       if (order.orderItems.length === 0) {
         flag = 1;
+        if (order.delivery) {
+          await this.deliveryRepository.remove(order.delivery);
+        }
         await this.orderRepository.remove(order);
       } else {
         // Tính toán lại giá
         order.subTotal = calculateSubTotal(order.orderItems);
         order.grandTotal = calculateGrandTotal(order);
-        await this.orderRepository.save(order);
+        if (order.delivery) {
+          order.delivery.total = calculateDeliveryTotal(order);
+        }
+        await Promise.all([
+          this.orderRepository.save(order),
+          this.deliveryRepository.save(order.delivery),
+        ]);
       }
       if (flag) {
         return {
