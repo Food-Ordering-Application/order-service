@@ -9,6 +9,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Delivery, Order, OrderItem, OrderItemTopping } from './entities';
@@ -482,6 +483,91 @@ export class OrderService {
       return {
         status: HttpStatus.OK,
         message: 'Order fetched successfully',
+        order,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        order: null,
+      };
+    }
+  }
+
+  async updateOrderItemQuantity(
+    updateOrderItemQuantityDto: UpdateOrderItemQuantityDto,
+  ): Promise<ICreateOrderResponse> {
+    try {
+      let flag = 0;
+      const { orderId, orderItemId, quantity } = updateOrderItemQuantityDto;
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+      // Tìm ra orderitem đó và sửa lại quantity
+      const orderItem = order.orderItems.find(
+        (item) => item.id === orderItemId,
+      );
+
+      orderItem.quantity = quantity;
+      // Nếu quantity là 0 thì xóa orderItem khỏi order
+      if (orderItem.quantity < 1) {
+        const newOrderItems = order.orderItems.filter(
+          (ordItem) => ordItem.id !== orderItem.id,
+        );
+        order.orderItems = newOrderItems;
+        // Remove hết tất cả orderItemTopping của orderItem đó
+        await this.orderItemToppingRepository.remove(
+          orderItem.orderItemToppings,
+        );
+        if (newOrderItems.length === 0) {
+          flag = 1;
+          await this.orderItemRepository.remove(orderItem);
+          if (order.delivery) {
+            await this.deliveryRepository.remove(order.delivery);
+          }
+          await this.orderRepository.remove(order);
+        } else {
+          order.subTotal = calculateSubTotal(order.orderItems);
+          order.grandTotal = calculateGrandTotal(order);
+          order.delivery.total = calculateDeliveryTotal(order);
+          await Promise.all([
+            this.orderRepository.save(order),
+            this.orderItemRepository.remove(orderItem),
+            this.deliveryRepository.save(order.delivery),
+          ]);
+        }
+      } else {
+        const orderItemIndex = order.orderItems.findIndex(
+          (item) => item.id === orderItemId,
+        );
+        order.orderItems[orderItemIndex] = orderItem;
+        order.subTotal = calculateSubTotal(order.orderItems);
+        order.grandTotal = calculateGrandTotal(order);
+        order.delivery.total = calculateDeliveryTotal(order);
+        await Promise.all([
+          this.orderItemRepository.save(orderItem),
+          this.orderRepository.save(order),
+          this.deliveryRepository.save(order.delivery),
+        ]);
+      }
+      if (flag === 1) {
+        return {
+          status: HttpStatus.OK,
+          message:
+            'Due to no orderItem left in order, order have been deleted!',
+          order: null,
+        };
+      }
+      return {
+        status: HttpStatus.OK,
+        message: 'Update orderItem quantity successfully',
         order,
       };
     } catch (error) {

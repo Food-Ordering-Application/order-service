@@ -9,6 +9,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  UpdateOrderItemQuantityDto,
 } from './dto';
 import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
 import { GetOrderDetailDto } from './dto/get-order-detail.dto';
@@ -84,5 +85,15 @@ export class OrderController {
     getOrderDetailDto: GetOrderDetailDto,
   ): Promise<ICreateOrderResponse> {
     return this.orderService.getOrderDetail(getOrderDetailDto);
+  }
+
+  @MessagePattern('updateOrderItemQuantity')
+  async updateOrderItemQuantity(
+    @Payload()
+    updateOrderItemQuantityDto: UpdateOrderItemQuantityDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.updateOrderItemQuantity(
+      updateOrderItemQuantityDto,
+    );
   }
 }
