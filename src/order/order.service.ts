@@ -72,6 +72,7 @@ export class OrderService {
         delivery.status = DeliveryStatus.WAITING_DRIVER;
         delivery.shippingFee = 15000;
         delivery.total = order.grandTotal + delivery.shippingFee;
+        delivery.order = order;
         await this.deliveryRepository.save(delivery);
       } else {
         // Nếu là order bên POS thì có cashierId
@@ -104,10 +105,13 @@ export class OrderService {
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
-        .where('delivery.customerId = :customerId', {
-          // restaurantId: restaurantId,
-          customerId: customerId,
-        })
+        .where(
+          'order.restaurantId = :restaurantId AND delivery.customerId = :customerId',
+          {
+            restaurantId: restaurantId,
+            customerId: customerId,
+          },
+        )
         .orderBy('order.createdAt', 'DESC')
         .getOne();
       console.log(customerId, restaurantId);
@@ -214,13 +218,14 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+      console.log(order);
       // Tìm ra orderitem đó và sửa lại quantity
       const orderItem = order.orderItems.find(
         (item) => item.id === orderItemId,
       );
 
       orderItem.quantity -= 1;
-
+      console.log('Orderitem quantity', orderItem.quantity);
       // Nếu quantity là 0 thì xóa orderItem khỏi order
       if (orderItem.quantity < 1) {
         const newOrderItems = order.orderItems.filter(
@@ -234,10 +239,10 @@ export class OrderService {
         if (newOrderItems.length === 0) {
           flag = 1;
           await this.orderItemRepository.remove(orderItem);
-          await this.orderRepository.remove(order);
           if (order.delivery) {
             await this.deliveryRepository.remove(order.delivery);
           }
+          await this.orderRepository.remove(order);
         } else {
           order.subTotal = calculateSubTotal(order.orderItems);
           order.grandTotal = calculateGrandTotal(order);
