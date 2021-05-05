@@ -3,15 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   AddNewItemToOrderDto,
+  GetAllRestaurantOrderDto,
   GetOrderAssociatedWithCusAndResDto,
+  GetOrderDetailDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Delivery, Order, OrderItem, OrderItemTopping } from './entities';
-import { PType, OrdStatus, DeliveryStatus } from './enums';
-import { ICreateOrderResponse } from './interfaces';
+import { PType, OrdStatus, DeliveryStatus, GetRestaurantOrder } from './enums';
+import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
   calculateGrandTotal,
@@ -403,6 +405,83 @@ export class OrderService {
       return {
         status: HttpStatus.OK,
         message: 'OrderItem removed successfully',
+        order,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        order: null,
+      };
+    }
+  }
+
+  async getAllRestaurantOrder(
+    getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
+  ): Promise<IOrdersResponse> {
+    try {
+      const { restaurantId, query } = getAllRestaurantOrderDto;
+      // Tìm lại order với orderId
+      let orders;
+      if (
+        query === GetRestaurantOrder.ALL ||
+        query === GetRestaurantOrder.SALE
+      ) {
+        orders = await this.orderRepository
+          .createQueryBuilder('order')
+          .leftJoinAndSelect('order.delivery', 'delivery')
+          .where('order.restaurantId = :restaurantId', {
+            restaurantId: restaurantId,
+          })
+          .getMany();
+      } else if (query === GetRestaurantOrder.POS) {
+        orders = await this.orderRepository
+          .createQueryBuilder('order')
+          .where('order.restaurantId = :restaurantId', {
+            restaurantId: restaurantId,
+          })
+          .getMany();
+      }
+
+      if (query === GetRestaurantOrder.SALE) {
+        orders = orders.filter((order) => order.delivery !== null);
+      }
+      return {
+        status: HttpStatus.OK,
+        message: 'Restaurant orders fetched successfully',
+        orders,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        orders: null,
+      };
+    }
+  }
+
+  async getOrderDetail(
+    getOrderDetailDto: GetOrderDetailDto,
+  ): Promise<ICreateOrderResponse> {
+    try {
+      const { orderId } = getOrderDetailDto;
+      // Tìm lại order với orderId
+
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Order fetched successfully',
         order,
       };
     } catch (error) {

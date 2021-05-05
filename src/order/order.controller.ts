@@ -4,12 +4,14 @@ import { OrderService } from './order.service';
 import {
   AddNewItemToOrderDto,
   CreateOrderDto,
+  GetAllRestaurantOrderDto,
   GetOrderAssociatedWithCusAndResDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
 } from './dto';
-import { ICreateOrderResponse } from './interfaces';
+import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
+import { GetOrderDetailDto } from './dto/get-order-detail.dto';
 
 @Controller()
 export class OrderController {
@@ -66,5 +68,21 @@ export class OrderController {
     removeOrderItemDto: RemoveOrderItemDto,
   ): Promise<ICreateOrderResponse> {
     return this.orderService.removeOrderItem(removeOrderItemDto);
+  }
+
+  @MessagePattern('getAllRestaurantOrder')
+  async getAllRestaurantOrder(
+    @Payload()
+    getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
+  ): Promise<IOrdersResponse> {
+    return this.orderService.getAllRestaurantOrder(getAllRestaurantOrderDto);
+  }
+
+  @MessagePattern('getOrderDetail')
+  async getOrderDetail(
+    @Payload()
+    getOrderDetailDto: GetOrderDetailDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.getOrderDetail(getOrderDetailDto);
   }
 }

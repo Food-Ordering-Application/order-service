@@ -11,10 +11,16 @@ interface Context {
 define(Order, (faker: typeof Faker, context: Context) => {
   const { orderStatus, paymentType } = context;
 
+  const myArray = [
+    'f1db260f-b2fa-4862-9041-2a7d3b481733',
+    '96c8540f-d1ee-427a-9932-eb98a1d8872d',
+    '5e3d5b0d-f370-40cd-9f21-c0e002085e55',
+  ];
+
   const order = new Order();
   order.id = faker.random.uuid();
   order.cashierId = faker.random.uuid();
-  order.restaurantId = faker.random.uuid();
+  order.restaurantId = myArray[Math.floor(Math.random() * myArray.length)];
   order.subTotal = faker.random.number({ min: 20000, max: 300000 });
   do {
     order.grandTotal = faker.random.number({ min: 20000, max: 300000 });
