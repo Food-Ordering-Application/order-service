@@ -9,7 +9,11 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-    command: npm run start:dev
-    env_file: 
-      .development.env
-     
+    env_file:
+      - ./development.env
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    external: true

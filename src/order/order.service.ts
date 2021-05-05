@@ -18,6 +18,7 @@ import {
   calculateSubTotal,
   findOrderItem,
   findOrderItemIndex,
+  calculateDeliveryTotal,
 } from './helpers/order-logic.helper';
 
 @Injectable()
@@ -134,6 +135,7 @@ export class OrderService {
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
           orderId: orderId,
@@ -153,7 +155,7 @@ export class OrderService {
         // Tính toán lại giá
         order.subTotal = calculateSubTotal(order.orderItems);
         order.grandTotal = calculateGrandTotal(order);
-      } else if (!foundOrderItem) {
+      } else {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
@@ -176,6 +178,11 @@ export class OrderService {
       }
       // Lưu lại order
       await this.orderRepository.save(order);
+      // Nếu trường delivery không falsy tức là order bên salechannel
+      if (order.delivery) {
+        order.delivery.total = calculateDeliveryTotal(order);
+        await this.deliveryRepository.save(order.delivery);
+      }
       return {
         status: HttpStatus.OK,
         message: 'New orderItem added successfully',
@@ -199,6 +206,7 @@ export class OrderService {
       const { orderId, orderItemId } = reduceOrderItemQuantityDto;
       const order = await this.orderRepository
         .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
@@ -222,20 +230,21 @@ export class OrderService {
         await this.orderItemToppingRepository.remove(
           orderItem.orderItemToppings,
         );
-        console.log(newOrderItems);
         if (newOrderItems.length === 0) {
           flag = 1;
-          console.log('REMOVE ORDERITEM');
-          console.log('REMOVE ORDER');
           await this.orderItemRepository.remove(orderItem);
           await this.orderRepository.remove(order);
+          if (order.delivery) {
+            await this.deliveryRepository.remove(order.delivery);
+          }
         } else {
           order.subTotal = calculateSubTotal(order.orderItems);
           order.grandTotal = calculateGrandTotal(order);
-          console.log('REMOVE ORDERITEM');
+          order.delivery.total = calculateDeliveryTotal(order);
           await Promise.all([
             this.orderRepository.save(order),
             this.orderItemRepository.remove(orderItem),
+            this.deliveryRepository.save(order.delivery),
           ]);
         }
       } else {
@@ -245,10 +254,11 @@ export class OrderService {
         order.orderItems[orderItemIndex] = orderItem;
         order.subTotal = calculateSubTotal(order.orderItems);
         order.grandTotal = calculateGrandTotal(order);
-
+        order.delivery.total = calculateDeliveryTotal(order);
         await Promise.all([
           this.orderItemRepository.save(orderItem),
           this.orderRepository.save(order),
+          this.deliveryRepository.save(order.delivery),
         ]);
       }
       if (flag === 1) {
@@ -280,6 +290,7 @@ export class OrderService {
       const { orderId, orderItemId } = increaseOrderItemQuantityDto;
       const order = await this.orderRepository
         .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
@@ -297,10 +308,20 @@ export class OrderService {
       order.orderItems[orderItemIndex] = orderItem;
       order.subTotal = calculateSubTotal(order.orderItems);
       order.grandTotal = calculateGrandTotal(order);
-      await Promise.all([
-        this.orderItemRepository.save(orderItem),
-        this.orderRepository.save(order),
-      ]);
+      if (order.delivery) {
+        order.delivery.total = calculateDeliveryTotal(order);
+        await Promise.all([
+          this.orderItemRepository.save(orderItem),
+          this.orderRepository.save(order),
+          this.deliveryRepository.save(order.delivery),
+        ]);
+      } else {
+        await Promise.all([
+          this.orderItemRepository.save(orderItem),
+          this.orderRepository.save(order),
+        ]);
+      }
+
       return {
         status: HttpStatus.OK,
         message: 'Increase orderItem quantity successfully',

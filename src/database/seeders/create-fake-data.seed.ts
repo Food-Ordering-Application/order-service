@@ -13,22 +13,22 @@ export default class CreateFakeData implements Seeder {
     const draftOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.DRAFT,
-    }).createMany(10);
+    }).createMany(30);
     const orderedOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.ORDERED,
-    }).createMany(10);
+    }).createMany(30);
     const completedOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.COMPLETED,
-    }).createMany(20);
+    }).createMany(60);
     const cancelledOrders = await factory(Order)({
       paymentType: PType.COD,
       orderStatus: OrdStatus.CANCELLED,
-    }).createMany(10);
+    }).createMany(30);
 
     // ORDERED và 30 order COMPLETED tạo DELIVERY
-    const combineOrders = [...orderedOrders, ...completedOrders.slice(0, 10)];
+    const combineOrders = [...orderedOrders, ...completedOrders.slice(0, 30)];
 
     for (const order of combineOrders) {
       await factory(Delivery)({
@@ -50,13 +50,13 @@ export default class CreateFakeData implements Seeder {
     for (const order of orders) {
       const orderItems = await factory(OrderItem)({
         order: order,
-      }).createMany(2);
+      }).createMany(Math.floor(Math.random() * 3) + 1);
 
       // Với mỗi OrderItem tạo nhiều OrderItemToppings
       for (const orderItem of orderItems) {
         await factory(OrderItemTopping)({
           orderItem: orderItem,
-        }).create();
+        }).createMany(Math.floor(Math.random() * 3) + 1);
       }
     }
   }
