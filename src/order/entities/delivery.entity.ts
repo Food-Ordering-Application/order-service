@@ -24,7 +24,12 @@ export class Delivery {
   @Column({ nullable: true })
   address: string;
 
-  @Column({ type: 'geometry', spatialFeatureType: 'Point', srid: 4326 })
+  @Column({
+    type: 'geometry',
+    spatialFeatureType: 'Point',
+    srid: 4326,
+    nullable: true,
+  })
   geom: { type: string; coordinates: number[] };
 
   @Column({ default: 15000, nullable: true })

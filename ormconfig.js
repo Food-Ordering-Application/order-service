@@ -1,4 +1,3 @@
-console.log(process.env.POSTGRES_HOST);
 module.exports = {
   type: 'postgres',
   host: process.env.POSTGRES_HOST,

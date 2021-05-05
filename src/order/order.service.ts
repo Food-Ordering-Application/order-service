@@ -101,16 +101,17 @@ export class OrderService {
       const { customerId, restaurantId } = getOrderAssociatedWithCusAndResDto;
       const order = await this.orderRepository
         .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
-        .where(
-          'order.restaurantId = :restaurantId AND order.customerId = :customerId',
-          {
-            restaurantId: restaurantId,
-            customerId: customerId,
-          },
-        )
+        .where('delivery.customerId = :customerId', {
+          // restaurantId: restaurantId,
+          customerId: customerId,
+        })
+        .orderBy('order.createdAt', 'DESC')
         .getOne();
+      console.log(customerId, restaurantId);
+      console.log('ORDER', order);
       return {
         status: HttpStatus.OK,
         message: 'Draft order fetched successfully',
