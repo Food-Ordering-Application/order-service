@@ -422,7 +422,7 @@ export class OrderService {
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
     try {
-      const { restaurantId, query } = getAllRestaurantOrderDto;
+      const { restaurantId, query, pageNumber } = getAllRestaurantOrderDto;
       // Tìm lại order với orderId
       let orders;
       if (
@@ -435,6 +435,8 @@ export class OrderService {
           .where('order.restaurantId = :restaurantId', {
             restaurantId: restaurantId,
           })
+          .skip((pageNumber - 1) * 25)
+          .take(25)
           .getMany();
       } else if (query === GetRestaurantOrder.POS) {
         orders = await this.orderRepository
@@ -442,6 +444,8 @@ export class OrderService {
           .where('order.restaurantId = :restaurantId', {
             restaurantId: restaurantId,
           })
+          .skip((pageNumber - 1) * 25)
+          .take(25)
           .getMany();
       }
 
