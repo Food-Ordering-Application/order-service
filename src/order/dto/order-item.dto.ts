@@ -20,6 +20,6 @@ export class OrderItem {
   @IsOptional()
   discount?: number;
 
-  @ValidateNested()
+  @ValidateNested({ each: true })
   orderItemToppings?: OrderItemTopping[];
 }
