@@ -17,6 +17,12 @@ define(Order, (faker: typeof Faker, context: Context) => {
     '5e3d5b0d-f370-40cd-9f21-c0e002085e55',
   ];
 
+  const myArray1 = [
+    '2021-05-08 04:45:56.647276',
+    '2021-12-08 04:45:56.647276',
+    '2022-03-22 04:45:56.647276',
+  ];
+
   const order = new Order();
   order.id = faker.random.uuid();
   order.cashierId = faker.random.uuid();
@@ -30,5 +36,8 @@ define(Order, (faker: typeof Faker, context: Context) => {
   order.discount = faker.random.number({ min: 0, max: 10000 });
   order.paymentType = paymentType;
   order.status = orderStatus;
+  order.createdAt = new Date(
+    myArray1[Math.floor(Math.random() * myArray1.length)],
+  );
   return order;
 });

@@ -422,35 +422,117 @@ export class OrderService {
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
     try {
-      const { restaurantId, query, pageNumber } = getAllRestaurantOrderDto;
+      const {
+        restaurantId,
+        query,
+        pageNumber,
+        start,
+        end,
+      } = getAllRestaurantOrderDto;
       // Tìm lại order với orderId
       let orders;
-      if (
-        query === GetRestaurantOrder.ALL ||
-        query === GetRestaurantOrder.SALE
-      ) {
-        orders = await this.orderRepository
-          .createQueryBuilder('order')
-          .leftJoinAndSelect('order.delivery', 'delivery')
-          .where('order.restaurantId = :restaurantId', {
-            restaurantId: restaurantId,
-          })
-          .skip((pageNumber - 1) * 25)
-          .take(25)
-          .getMany();
+      if (query === GetRestaurantOrder.ALL) {
+        if (!start || !end || (!start && !end)) {
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        } else if (start && end) {
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .andWhere('order.createdAt >= :startDate', {
+              startDate: startDate.toISOString(),
+            })
+            .andWhere('order.createdAt <= :endDate', {
+              endDate: endDate.toISOString(),
+            })
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        }
       } else if (query === GetRestaurantOrder.POS) {
-        orders = await this.orderRepository
-          .createQueryBuilder('order')
-          .where('order.restaurantId = :restaurantId', {
-            restaurantId: restaurantId,
-          })
-          .skip((pageNumber - 1) * 25)
-          .take(25)
-          .getMany();
+        if (!start || !end || (!start && !end)) {
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .andWhere('delivery.id IS NULL')
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        } else if (start && end) {
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .andWhere('delivery.id IS NULL')
+            .andWhere('order.createdAt >= :startDate', {
+              startDate: startDate.toISOString(),
+            })
+            .andWhere('order.createdAt <= :endDate', {
+              endDate: endDate.toISOString(),
+            })
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        }
+      } else {
+        if (!start || !end || (!start && !end)) {
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .andWhere('delivery.id IS NOT NULL')
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        } else if (start && end) {
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          orders = await this.orderRepository
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.delivery', 'delivery')
+            .where('order.restaurantId = :restaurantId', {
+              restaurantId: restaurantId,
+            })
+            .andWhere('delivery.id IS NOT NULL')
+            .andWhere('order.createdAt >= :startDate', {
+              startDate: startDate.toISOString(),
+            })
+            .andWhere('order.createdAt <= :endDate', {
+              endDate: endDate.toISOString(),
+            })
+            .skip((pageNumber - 1) * 25)
+            .take(25)
+            .getMany();
+        }
       }
 
       if (query === GetRestaurantOrder.SALE) {
         orders = orders.filter((order) => order.delivery !== null);
+      }
+
+      if (query === GetRestaurantOrder.POS) {
+        orders = orders.filter((order) => order.delivery === null);
       }
       return {
         status: HttpStatus.OK,
