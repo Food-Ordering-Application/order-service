@@ -4,6 +4,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer'
 import { OrderItemTopping } from './order-item-topping.dto';
 
 export class OrderItem {
@@ -21,5 +22,6 @@ export class OrderItem {
   discount?: number;
 
   @ValidateNested({ each: true })
+  @Type(()=>OrderItemTopping)
   orderItemToppings?: OrderItemTopping[];
 }
