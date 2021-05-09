@@ -6,7 +6,7 @@ RUN npm install --development
 COPY . .
 COPY ./default.env ./.env
 RUN npm run build
-CMD npm run db:setup && npm run start:dev
+# CMD npm run db:setup && npm run start:dev
 
 
 FROM node:12.13-alpine as production

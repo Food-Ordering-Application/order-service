@@ -38,6 +38,7 @@
     "@nestjs/typeorm": "^7.1.5",
     "amqp-connection-manager": "^3.2.2",
     "amqplib": "^0.7.1",
+    "class-transformer": "^0.4.0",
     "class-validator": "^0.13.1",
     "joi": "^17.4.0",
     "lodash": "^4.17.21",
