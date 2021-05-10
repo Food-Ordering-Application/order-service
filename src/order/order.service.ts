@@ -81,6 +81,10 @@ export class OrderService {
         /* Nếu customer có địa chỉ */
         if (customerGeom) {
           console.log('CALCULATE SHIPPING FEE');
+          console.log(restaurantGeom.coordinates[0]);
+          console.log(restaurantGeom.coordinates[1]);
+          console.log(customerGeom.coordinates[0]);
+          console.log(customerGeom.coordinates[1]);
           delivery.shippingFee = await calculateShippingFee(
             this.deliveryRepository,
             restaurantGeom,
@@ -91,6 +95,7 @@ export class OrderService {
 
         delivery.order = order;
         await this.deliveryRepository.save(delivery);
+        order.delivery = delivery;
       } else {
         // Nếu là order bên POS thì có cashierId
         order.cashierId = cashierId;
