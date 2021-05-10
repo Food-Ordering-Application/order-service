@@ -103,6 +103,7 @@ export class OrderController {
     @Payload()
     updateDeliveryAddressDto: UpdateDeliveryAddressDto,
   ): Promise<ICreateOrderResponse> {
+    console.log('haha');
     return this.orderService.updateDeliveryAddress(updateDeliveryAddressDto);
   }
 }
