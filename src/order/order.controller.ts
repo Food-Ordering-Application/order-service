@@ -9,6 +9,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
@@ -95,5 +96,13 @@ export class OrderController {
     return this.orderService.updateOrderItemQuantity(
       updateOrderItemQuantityDto,
     );
+  }
+
+  @MessagePattern('updateDeliveryAddress')
+  async updateDeliveryAddress(
+    @Payload()
+    updateDeliveryAddressDto: UpdateDeliveryAddressDto,
+  ): Promise<ICreateOrderResponse> {
+    return this.orderService.updateDeliveryAddress(updateDeliveryAddressDto);
   }
 }

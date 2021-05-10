@@ -19,14 +19,24 @@ define(Delivery, (faker: typeof Faker, context: Context) => {
   delivery.status = deliveryStatus;
   delivery.address = faker.address.streetAddress(true);
   delivery.order = order;
-  const latitude = faker.address.latitude();
-  const longtitude = faker.address.longitude();
 
-  const geom = {
+  const customerGeom = {
     type: 'Point',
-    coordinates: [parseFloat(longtitude), parseFloat(latitude)],
+    coordinates: [
+      parseFloat(faker.address.latitude()),
+      parseFloat(faker.address.longitude()),
+    ],
   };
-  delivery.geom = geom;
+
+  const restaurantGeom = {
+    type: 'Point',
+    coordinates: [
+      parseFloat(faker.address.latitude()),
+      parseFloat(faker.address.longitude()),
+    ],
+  };
+  delivery.customerGeom = customerGeom;
+  delivery.restaurantGeom = restaurantGeom;
   delivery.deliveredAt = faker.date.future();
   delivery.total = faker.random.number({ min: 30000, max: 100000 });
   return delivery;

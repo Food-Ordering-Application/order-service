@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm install --development
 COPY . .
-COPY ./default.env ./.env
+COPY ./development.env ./.env
 RUN npm run build
 # CMD npm run db:setup && npm run start:dev
 

@@ -27,14 +27,11 @@ define(Order, (faker: typeof Faker, context: Context) => {
   order.id = faker.random.uuid();
   order.cashierId = faker.random.uuid();
   order.restaurantId = myArray[Math.floor(Math.random() * myArray.length)];
-  order.subTotal = faker.random.number({ min: 20000, max: 300000 });
-  do {
-    order.grandTotal = faker.random.number({ min: 20000, max: 300000 });
-  } while (order.grandTotal < order.subTotal);
+  order.total = faker.random.number({ min: 20000, max: 300000 });
   order.itemDiscount = faker.random.number({ min: 20000, max: 300000 });
-  order.serviceFee = faker.random.number({ min: 0, max: 10000 });
   order.discount = faker.random.number({ min: 0, max: 10000 });
   order.paymentType = paymentType;
+  order.note = faker.lorem.paragraph();
   order.status = orderStatus;
   order.createdAt = new Date(
     myArray1[Math.floor(Math.random() * myArray1.length)],

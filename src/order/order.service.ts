@@ -9,6 +9,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -17,11 +18,11 @@ import { PType, OrdStatus, DeliveryStatus, GetRestaurantOrder } from './enums';
 import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
-  calculateGrandTotal,
-  calculateSubTotal,
+  calculateOrderTotal,
   findOrderItem,
   findOrderItemIndex,
   calculateDeliveryTotal,
+  calculateShippingFee,
 } from './helpers/order-logic.helper';
 
 @Injectable()
@@ -42,7 +43,14 @@ export class OrderService {
   async createOrderAndFirstOrderItem(
     createOrderDto: CreateOrderDto,
   ): Promise<ICreateOrderResponse> {
-    const { orderItem, restaurantId, customerId, cashierId } = createOrderDto;
+    const {
+      orderItem,
+      restaurantId,
+      customerId,
+      cashierId,
+      restaurantGeom,
+      customerGeom,
+    } = createOrderDto;
     try {
       // Tạo và lưu orderItem
       const {
@@ -53,7 +61,6 @@ export class OrderService {
         this.orderItemToppingRepository,
         this.orderItemRepository,
       );
-
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -61,20 +68,27 @@ export class OrderService {
       order.paymentType = PType.COD;
       order.status = OrdStatus.DRAFT;
       order.orderItems = addOrderItems;
-      order.serviceFee = 2000;
-      order.subTotal =
-        (orderItem.price + totalPriceToppings) * orderItem.quantity;
-      order.grandTotal = order.serviceFee + order.subTotal;
+      order.total = (orderItem.price + totalPriceToppings) * orderItem.quantity;
       await this.orderRepository.save(order);
-
       // Nếu là order bên salechannel thì có customerId
       if (customerId) {
         // Tạo và lưu delivery
         const delivery = new Delivery();
         delivery.customerId = customerId;
         delivery.status = DeliveryStatus.WAITING_DRIVER;
-        delivery.shippingFee = 15000;
-        delivery.total = order.grandTotal + delivery.shippingFee;
+        delivery.restaurantGeom = restaurantGeom;
+
+        /* Nếu customer có địa chỉ */
+        if (customerGeom) {
+          console.log('CALCULATE SHIPPING FEE');
+          delivery.shippingFee = await calculateShippingFee(
+            this.deliveryRepository,
+            restaurantGeom,
+            customerGeom,
+          );
+          delivery.total = order.total + delivery.shippingFee;
+        }
+
         delivery.order = order;
         await this.deliveryRepository.save(delivery);
       } else {
@@ -115,10 +129,7 @@ export class OrderService {
             customerId: customerId,
           },
         )
-        .orderBy('order.createdAt', 'DESC')
         .getOne();
-      console.log(customerId, restaurantId);
-      console.log('ORDER', order);
       return {
         status: HttpStatus.OK,
         message: 'Draft order fetched successfully',
@@ -161,8 +172,7 @@ export class OrderService {
         await this.orderItemRepository.save(foundOrderItem);
         order.orderItems[foundOrderItemIndex] = foundOrderItem;
         // Tính toán lại giá
-        order.subTotal = calculateSubTotal(order.orderItems);
-        order.grandTotal = calculateGrandTotal(order);
+        order.total = calculateOrderTotal(order.orderItems);
       } else {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
@@ -181,8 +191,7 @@ export class OrderService {
         // Tính toán lại giá và lưu lại order
         const totalOrderItemPrice =
           (sendItem.price + totalPriceToppings) * sendItem.quantity;
-        order.subTotal += totalOrderItemPrice;
-        order.grandTotal += totalOrderItemPrice;
+        order.total += totalOrderItemPrice;
       }
       // Lưu lại order
       await this.orderRepository.save(order);
@@ -221,7 +230,7 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
-      console.log(order);
+
       // Tìm ra orderitem đó và sửa lại quantity
       const orderItem = order.orderItems.find(
         (item) => item.id === orderItemId,
@@ -247,8 +256,7 @@ export class OrderService {
           }
           await this.orderRepository.remove(order);
         } else {
-          order.subTotal = calculateSubTotal(order.orderItems);
-          order.grandTotal = calculateGrandTotal(order);
+          order.total = calculateOrderTotal(order.orderItems);
           order.delivery.total = calculateDeliveryTotal(order);
           await Promise.all([
             this.orderRepository.save(order),
@@ -261,8 +269,7 @@ export class OrderService {
           (item) => item.id === orderItemId,
         );
         order.orderItems[orderItemIndex] = orderItem;
-        order.subTotal = calculateSubTotal(order.orderItems);
-        order.grandTotal = calculateGrandTotal(order);
+        order.total = calculateOrderTotal(order.orderItems);
         order.delivery.total = calculateDeliveryTotal(order);
         await Promise.all([
           this.orderItemRepository.save(orderItem),
@@ -315,8 +322,7 @@ export class OrderService {
         (item) => item.id === orderItemId,
       );
       order.orderItems[orderItemIndex] = orderItem;
-      order.subTotal = calculateSubTotal(order.orderItems);
-      order.grandTotal = calculateGrandTotal(order);
+      order.total = calculateOrderTotal(order.orderItems);
       if (order.delivery) {
         order.delivery.total = calculateDeliveryTotal(order);
         await Promise.all([
@@ -386,8 +392,7 @@ export class OrderService {
         await this.orderRepository.remove(order);
       } else {
         // Tính toán lại giá
-        order.subTotal = calculateSubTotal(order.orderItems);
-        order.grandTotal = calculateGrandTotal(order);
+        order.total = calculateOrderTotal(order.orderItems);
         if (order.delivery) {
           order.delivery.total = calculateDeliveryTotal(order);
         }
@@ -620,8 +625,7 @@ export class OrderService {
           }
           await this.orderRepository.remove(order);
         } else {
-          order.subTotal = calculateSubTotal(order.orderItems);
-          order.grandTotal = calculateGrandTotal(order);
+          order.total = calculateOrderTotal(order.orderItems);
           order.delivery.total = calculateDeliveryTotal(order);
           await Promise.all([
             this.orderRepository.save(order),
@@ -634,8 +638,7 @@ export class OrderService {
           (item) => item.id === orderItemId,
         );
         order.orderItems[orderItemIndex] = orderItem;
-        order.subTotal = calculateSubTotal(order.orderItems);
-        order.grandTotal = calculateGrandTotal(order);
+        order.total = calculateOrderTotal(order.orderItems);
         order.delivery.total = calculateDeliveryTotal(order);
         await Promise.all([
           this.orderItemRepository.save(orderItem),
@@ -654,6 +657,46 @@ export class OrderService {
       return {
         status: HttpStatus.OK,
         message: 'Update orderItem quantity successfully',
+        order,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        order: null,
+      };
+    }
+  }
+
+  async updateDeliveryAddress(
+    updateDeliveryAddressDto: UpdateDeliveryAddressDto,
+  ): Promise<ICreateOrderResponse> {
+    try {
+      const {
+        orderId,
+        newAddress: { address, geom },
+      } = updateDeliveryAddressDto;
+      //TODO: Tìm ra order với orderId
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+      //TODO: Update lại thông tin address, customerGeom và tính toán lại shippingFee của delivery
+      order.delivery.address = address;
+      order.delivery.customerGeom = geom;
+      order.delivery.shippingFee = await calculateShippingFee(
+        this.deliveryRepository,
+        order.delivery.restaurantGeom,
+        geom,
+      );
+      this.deliveryRepository.save(order.delivery);
+      return {
+        status: HttpStatus.OK,
+        message: 'Update delivery address successfully',
         order,
       };
     } catch (error) {

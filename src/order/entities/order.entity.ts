@@ -23,19 +23,16 @@ export class Order {
   restaurantId: string;
 
   @Column({ nullable: true })
-  subTotal: number;
-
-  @Column({ nullable: true })
   itemDiscount: number;
-
-  @Column({ default: 2000, nullable: true })
-  serviceFee: number;
 
   @Column({ nullable: true })
   discount: number;
 
   @Column({ nullable: true })
-  grandTotal: number;
+  total: number;
+
+  @Column({ nullable: true })
+  note: string;
 
   @CreateDateColumn()
   createdAt: Date;

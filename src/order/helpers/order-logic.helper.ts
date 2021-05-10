@@ -1,9 +1,14 @@
 import { Repository } from 'typeorm';
 import {
+  EXTRA_KILOMETER_FEE,
+  FIRST_SHIPPING_KILOMETER,
+  FIRST_THREE_KILOMETER_FEE,
+} from '../constants';
+import {
   OrderItem as OrderItemDto,
   OrderItemTopping as OrderItemToppingDto,
 } from '../dto';
-import { OrderItemTopping, OrderItem, Order } from '../entities';
+import { OrderItemTopping, OrderItem, Order, Delivery } from '../entities';
 import { State } from '../enums';
 
 export const createAndStoreOrderItem = async (
@@ -76,8 +81,8 @@ export const checkEqualTopping = (
   return true;
 };
 
-export const calculateSubTotal = (orderItems: OrderItem[]): number => {
-  let subTotal = 0;
+export const calculateOrderTotal = (orderItems: OrderItem[]): number => {
+  let total = 0;
   for (const orderItem of orderItems) {
     let totalToppingPrice = 0;
     for (let i = 0; i < orderItem.orderItemToppings.length; i++) {
@@ -85,22 +90,22 @@ export const calculateSubTotal = (orderItems: OrderItem[]): number => {
         orderItem.orderItemToppings[i].price *
         orderItem.orderItemToppings[i].quantity;
     }
-    subTotal += (orderItem.price + totalToppingPrice) * orderItem.quantity;
+    total += (orderItem.price + totalToppingPrice) * orderItem.quantity;
   }
-  return subTotal;
+  return total;
 };
 
-export const calculateGrandTotal = (order: Order): number => {
-  const { subTotal, serviceFee } = order;
-  return subTotal + serviceFee;
-};
+// export const calculateGrandTotal = (order: Order): number => {
+//   const { subTotal, serviceFee } = order;
+//   return subTotal + serviceFee;
+// };
 
 export const calculateDeliveryTotal = (order: Order): number => {
   const {
-    grandTotal,
+    total,
     delivery: { shippingFee },
   } = order;
-  return grandTotal + shippingFee;
+  return total + shippingFee;
 };
 
 export const findOrderItem = (
@@ -136,4 +141,34 @@ const compare = (
   if (a.menuItemToppingId < b.menuItemToppingId) return -1;
   if (a.menuItemToppingId > b.menuItemToppingId) return 1;
   return 0;
+};
+
+//* Calculate shippingFee
+export const calculateShippingFee = async (
+  deliveryRepository: Repository<Delivery>,
+  restaurantGeom,
+  customerGeom,
+): Promise<number> => {
+  let shippingFee;
+  const { st_distance } = await deliveryRepository
+    .createQueryBuilder('delivery')
+    .select(
+      `ST_Distance(
+        ST_Transform(ST_SetSRID(ST_MakePoint(${restaurantGeom.coordinates[1]}, ${restaurantGeom.coordinates[0]}), 4326), 3857),
+        ST_Transform(ST_SetSRID(ST_MakePoint(${customerGeom.coordinates[1]}, ${customerGeom.coordinates[0]}), 4326), 3857)
+        )`,
+    )
+    .getRawOne();
+  console.log(st_distance);
+  /* Nếu khoảng cách <3km thì phí ship là 15000đồng, mỗi 1km 5000 đồng*/
+  if (st_distance <= FIRST_SHIPPING_KILOMETER)
+    shippingFee = FIRST_THREE_KILOMETER_FEE;
+  else {
+    const extraKilometer = Math.floor(
+      (st_distance - FIRST_SHIPPING_KILOMETER) / 1000,
+    );
+    shippingFee =
+      FIRST_THREE_KILOMETER_FEE + (extraKilometer + 1) * EXTRA_KILOMETER_FEE;
+  }
+  return shippingFee;
 };

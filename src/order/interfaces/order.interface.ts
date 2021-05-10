@@ -4,11 +4,9 @@ export interface IOrder {
   customerId?: string;
   driverId?: string;
   restaurantId?: string;
-  subTotal?: number;
-  grandTotal?: number;
+  total?: number;
   itemDiscount?: number;
   shippingFee?: number;
-  serviceFee?: number;
   promoId?: string;
   discount?: number;
   paymentType?: string;

@@ -30,7 +30,15 @@ export class Delivery {
     srid: 4326,
     nullable: true,
   })
-  geom: { type: string; coordinates: number[] };
+  customerGeom: { type: string; coordinates: number[] };
+
+  @Column({
+    type: 'geometry',
+    spatialFeatureType: 'Point',
+    srid: 4326,
+    nullable: true,
+  })
+  restaurantGeom: { type: string; coordinates: number[] };
 
   @Column({ default: 15000, nullable: true })
   shippingFee: number;
