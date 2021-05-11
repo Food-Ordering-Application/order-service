@@ -81,7 +81,7 @@ export const checkEqualTopping = (
   return true;
 };
 
-export const calculateOrderTotal = (orderItems: OrderItem[]): number => {
+export const calculateOrderSubTotal = (orderItems: OrderItem[]): number => {
   let total = 0;
   for (const orderItem of orderItems) {
     let totalToppingPrice = 0;
@@ -95,18 +95,32 @@ export const calculateOrderTotal = (orderItems: OrderItem[]): number => {
   return total;
 };
 
+export const calculateOrderGrandToTal = (order: Order): number => {
+  //TODO: Nếu là order salechannel
+  if (order.delivery) {
+    //TODO: Nếu người dùng đã có địa chỉ
+    if (order.delivery.shippingFee) {
+      return order.subTotal + order.delivery.shippingFee;
+    } else {
+      return order.subTotal;
+    }
+  } else {
+    return order.subTotal;
+  }
+};
+
 // export const calculateGrandTotal = (order: Order): number => {
 //   const { subTotal, serviceFee } = order;
 //   return subTotal + serviceFee;
 // };
 
-export const calculateDeliveryTotal = (order: Order): number => {
-  const {
-    total,
-    delivery: { shippingFee },
-  } = order;
-  return total + shippingFee;
-};
+// export const calculateDeliveryTotal = (order: Order): number => {
+//   const {
+//     total,
+//     delivery: { shippingFee },
+//   } = order;
+//   return total + shippingFee;
+// };
 
 export const findOrderItem = (
   sendItem: OrderItemDto,

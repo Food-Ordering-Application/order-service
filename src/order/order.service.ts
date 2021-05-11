@@ -18,10 +18,10 @@ import { PType, OrdStatus, DeliveryStatus, GetRestaurantOrder } from './enums';
 import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
-  calculateOrderTotal,
+  calculateOrderSubTotal,
+  calculateOrderGrandToTal,
   findOrderItem,
   findOrderItemIndex,
-  calculateDeliveryTotal,
   calculateShippingFee,
 } from './helpers/order-logic.helper';
 
@@ -68,7 +68,8 @@ export class OrderService {
       order.paymentType = PType.COD;
       order.status = OrdStatus.DRAFT;
       order.orderItems = addOrderItems;
-      order.total = (orderItem.price + totalPriceToppings) * orderItem.quantity;
+      order.subTotal =
+        (orderItem.price + totalPriceToppings) * orderItem.quantity;
       await this.orderRepository.save(order);
       // Nếu là order bên salechannel thì có customerId
       if (customerId) {
@@ -90,7 +91,7 @@ export class OrderService {
             restaurantGeom,
             customerGeom,
           );
-          delivery.total = order.total + delivery.shippingFee;
+          order.grandTotal = order.subTotal + delivery.shippingFee;
         }
 
         delivery.order = order;
@@ -99,6 +100,7 @@ export class OrderService {
       } else {
         // Nếu là order bên POS thì có cashierId
         order.cashierId = cashierId;
+        order.grandTotal = order.subTotal;
         await this.orderRepository.save(order);
       }
 
@@ -177,7 +179,8 @@ export class OrderService {
         await this.orderItemRepository.save(foundOrderItem);
         order.orderItems[foundOrderItemIndex] = foundOrderItem;
         // Tính toán lại giá
-        order.total = calculateOrderTotal(order.orderItems);
+        order.subTotal = calculateOrderSubTotal(order.orderItems);
+        order.grandTotal = calculateOrderGrandToTal(order);
       } else {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
@@ -196,15 +199,16 @@ export class OrderService {
         // Tính toán lại giá và lưu lại order
         const totalOrderItemPrice =
           (sendItem.price + totalPriceToppings) * sendItem.quantity;
-        order.total += totalOrderItemPrice;
+        order.subTotal += totalOrderItemPrice;
+        order.grandTotal = calculateOrderGrandToTal(order);
       }
       // Lưu lại order
       await this.orderRepository.save(order);
       // Nếu trường delivery không falsy tức là order bên salechannel
-      if (order.delivery) {
-        order.delivery.total = calculateDeliveryTotal(order);
-        await this.deliveryRepository.save(order.delivery);
-      }
+      // if (order.delivery) {
+      //   order.delivery.total = calculateDeliveryTotal(order);
+      //   await this.deliveryRepository.save(order.delivery);
+      // }
       return {
         status: HttpStatus.OK,
         message: 'New orderItem added successfully',
@@ -261,12 +265,11 @@ export class OrderService {
           }
           await this.orderRepository.remove(order);
         } else {
-          order.total = calculateOrderTotal(order.orderItems);
-          order.delivery.total = calculateDeliveryTotal(order);
+          order.subTotal = calculateOrderSubTotal(order.orderItems);
+          order.grandTotal = calculateOrderGrandToTal(order);
           await Promise.all([
             this.orderRepository.save(order),
             this.orderItemRepository.remove(orderItem),
-            this.deliveryRepository.save(order.delivery),
           ]);
         }
       } else {
@@ -274,12 +277,11 @@ export class OrderService {
           (item) => item.id === orderItemId,
         );
         order.orderItems[orderItemIndex] = orderItem;
-        order.total = calculateOrderTotal(order.orderItems);
-        order.delivery.total = calculateDeliveryTotal(order);
+        order.subTotal = calculateOrderSubTotal(order.orderItems);
+        order.grandTotal = calculateOrderGrandToTal(order);
         await Promise.all([
           this.orderItemRepository.save(orderItem),
           this.orderRepository.save(order),
-          this.deliveryRepository.save(order.delivery),
         ]);
       }
       if (flag === 1) {
@@ -327,20 +329,12 @@ export class OrderService {
         (item) => item.id === orderItemId,
       );
       order.orderItems[orderItemIndex] = orderItem;
-      order.total = calculateOrderTotal(order.orderItems);
-      if (order.delivery) {
-        order.delivery.total = calculateDeliveryTotal(order);
-        await Promise.all([
-          this.orderItemRepository.save(orderItem),
-          this.orderRepository.save(order),
-          this.deliveryRepository.save(order.delivery),
-        ]);
-      } else {
-        await Promise.all([
-          this.orderItemRepository.save(orderItem),
-          this.orderRepository.save(order),
-        ]);
-      }
+      order.subTotal = calculateOrderSubTotal(order.orderItems);
+      order.grandTotal = calculateOrderGrandToTal(order);
+      await Promise.all([
+        this.orderItemRepository.save(orderItem),
+        this.orderRepository.save(order),
+      ]);
 
       return {
         status: HttpStatus.OK,
@@ -397,14 +391,9 @@ export class OrderService {
         await this.orderRepository.remove(order);
       } else {
         // Tính toán lại giá
-        order.total = calculateOrderTotal(order.orderItems);
-        if (order.delivery) {
-          order.delivery.total = calculateDeliveryTotal(order);
-        }
-        await Promise.all([
-          this.orderRepository.save(order),
-          this.deliveryRepository.save(order.delivery),
-        ]);
+        order.subTotal = calculateOrderSubTotal(order.orderItems);
+        order.grandTotal = calculateOrderGrandToTal(order);
+        await Promise.all([this.orderRepository.save(order)]);
       }
       if (flag) {
         return {
@@ -630,12 +619,11 @@ export class OrderService {
           }
           await this.orderRepository.remove(order);
         } else {
-          order.total = calculateOrderTotal(order.orderItems);
-          order.delivery.total = calculateDeliveryTotal(order);
+          order.subTotal = calculateOrderSubTotal(order.orderItems);
+          order.grandTotal = calculateOrderGrandToTal(order);
           await Promise.all([
             this.orderRepository.save(order),
             this.orderItemRepository.remove(orderItem),
-            this.deliveryRepository.save(order.delivery),
           ]);
         }
       } else {
@@ -643,12 +631,11 @@ export class OrderService {
           (item) => item.id === orderItemId,
         );
         order.orderItems[orderItemIndex] = orderItem;
-        order.total = calculateOrderTotal(order.orderItems);
-        order.delivery.total = calculateDeliveryTotal(order);
+        order.subTotal = calculateOrderSubTotal(order.orderItems);
+        order.grandTotal = calculateOrderGrandToTal(order);
         await Promise.all([
           this.orderItemRepository.save(orderItem),
           this.orderRepository.save(order),
-          this.deliveryRepository.save(order.delivery),
         ]);
       }
       if (flag === 1) {

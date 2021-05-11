@@ -29,7 +29,10 @@ export class Order {
   discount: number;
 
   @Column({ nullable: true })
-  total: number;
+  subTotal: number;
+
+  @Column({ nullable: true })
+  grandTotal: number;
 
   @Column({ nullable: true })
   note: string;

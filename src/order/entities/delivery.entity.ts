@@ -43,9 +43,6 @@ export class Delivery {
   @Column({ default: 15000, nullable: true })
   shippingFee: number;
 
-  @Column({ nullable: true })
-  total: number;
-
   @Column({ enum: DeliveryStatus })
   status: string;
 

@@ -38,6 +38,5 @@ define(Delivery, (faker: typeof Faker, context: Context) => {
   delivery.customerGeom = customerGeom;
   delivery.restaurantGeom = restaurantGeom;
   delivery.deliveredAt = faker.date.future();
-  delivery.total = faker.random.number({ min: 30000, max: 100000 });
   return delivery;
 });
