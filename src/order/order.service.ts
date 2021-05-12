@@ -691,7 +691,7 @@ export class OrderService {
         geom,
       );
       order.delivery.shippingFee = shippingFee;
-      order.delivery.distance = distance;
+      order.delivery.distance = Math.floor(distance);
       this.deliveryRepository.save(order.delivery);
       return {
         status: HttpStatus.OK,
