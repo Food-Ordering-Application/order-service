@@ -11,6 +11,9 @@ export class OrderItemTopping {
   menuItemToppingId: string;
 
   @Column()
+  name: string;
+
+  @Column()
   quantity: number;
 
   @Column({ nullable: true })

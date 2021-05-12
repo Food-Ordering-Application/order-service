@@ -14,6 +14,7 @@ define(OrderItemTopping, (faker: typeof Faker, context: Context) => {
   orderItemTopping.id = faker.random.uuid();
   orderItemTopping.orderItem = orderItem;
   orderItemTopping.menuItemToppingId = faker.random.uuid();
+  orderItemTopping.name = faker.name.findName();
   orderItemTopping.price = faker.random.number({ min: 10000, max: 300000 });
   orderItemTopping.quantity = faker.random.number({ min: 0, max: 5 });
   orderItemTopping.state = _.sample(Object.values(State)) as State;

@@ -17,6 +17,9 @@ export class OrderItem {
   @IsNumber()
   quantity?: number;
 
+  @IsString()
+  name?: string;
+
   @IsNumber()
   @IsOptional()
   discount?: number;

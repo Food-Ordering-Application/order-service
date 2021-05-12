@@ -72,6 +72,7 @@ export class OrderService {
       order.orderItems = addOrderItems;
       order.subTotal =
         (orderItem.price + totalPriceToppings) * orderItem.quantity;
+      order.grandTotal = order.subTotal;
       await this.orderRepository.save(order);
       // Nếu là order bên salechannel thì có customerId
       let newOrder;
@@ -183,7 +184,6 @@ export class OrderService {
         order.orderItems[foundOrderItemIndex] = foundOrderItem;
         // Tính toán lại giá
         order.subTotal = calculateOrderSubTotal(order.orderItems);
-        order.grandTotal = calculateOrderGrandToTal(order);
       } else {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
@@ -203,8 +203,8 @@ export class OrderService {
         const totalOrderItemPrice =
           (sendItem.price + totalPriceToppings) * sendItem.quantity;
         order.subTotal += totalOrderItemPrice;
-        order.grandTotal = calculateOrderGrandToTal(order);
       }
+      order.grandTotal = calculateOrderGrandToTal(order);
       // Lưu lại order
       await this.orderRepository.save(order);
       // Nếu trường delivery không falsy tức là order bên salechannel
@@ -676,6 +676,8 @@ export class OrderService {
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
           orderId: orderId,
         })

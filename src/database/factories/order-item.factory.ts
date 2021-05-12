@@ -14,6 +14,7 @@ define(OrderItem, (faker: typeof Faker, context: Context) => {
   orderItem.id = faker.random.uuid();
   orderItem.menuItemId = faker.random.uuid();
   orderItem.order = order;
+  orderItem.name = faker.name.findName();
   orderItem.price = faker.random.number({ min: 10000, max: 300000 });
   orderItem.discount = faker.random.number({ min: 0, max: 50000 });
   orderItem.quantity = faker.random.number({ min: 0, max: 5 });

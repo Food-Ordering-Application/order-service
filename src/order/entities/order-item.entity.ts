@@ -23,6 +23,9 @@ export class OrderItem {
   price: number;
 
   @Column()
+  name: string;
+
+  @Column()
   quantity: number;
 
   @Column({ nullable: true, default: 0 })

@@ -21,12 +21,14 @@ export const createAndStoreOrderItem = async (
     price: orderItemPrice,
     quantity: orderItemQuantity,
     orderItemToppings,
+    name,
   } = orderItem;
 
   const addOrderItem = new OrderItem();
   addOrderItem.menuItemId = menuItemId;
   addOrderItem.price = orderItemPrice;
   addOrderItem.quantity = orderItemQuantity;
+  addOrderItem.name = name;
 
   let totalPriceToppings = 0;
   // Tạo và lưu orderItemTopping
@@ -38,6 +40,7 @@ export const createAndStoreOrderItem = async (
         orderItemToppings[i].menuItemToppingId;
       addOrderItemTopping.price = orderItemToppings[i].price;
       addOrderItemTopping.quantity = orderItemToppings[i].quantity;
+      addOrderItemTopping.name = orderItemToppings[i].name;
       addOrderItemTopping.state = State.IN_STOCK;
       await orderItemToppingRepository.save(addOrderItemTopping);
       addOrderItemToppings.push(addOrderItemTopping);
@@ -99,7 +102,7 @@ export const calculateOrderGrandToTal = (order: Order): number => {
   //TODO: Nếu là order salechannel
   if (order.delivery) {
     //TODO: Nếu người dùng đã có địa chỉ
-    if (order.delivery.shippingFee) {
+    if (order.delivery.customerAddress && order.delivery.customerGeom) {
       return order.subTotal + order.delivery.shippingFee;
     } else {
       return order.subTotal;

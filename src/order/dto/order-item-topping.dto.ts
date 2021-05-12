@@ -4,6 +4,9 @@ export class OrderItemTopping {
   @IsString()
   menuItemToppingId?: string;
 
+  @IsString()
+  name?: string;
+
   @IsNumber()
   quantity?: number;
 
