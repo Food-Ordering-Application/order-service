@@ -22,7 +22,7 @@ export class Delivery {
   driverId: string;
 
   @Column({ nullable: true })
-  address: string;
+  customerAddress: string;
 
   @Column({
     type: 'geometry',
@@ -31,6 +31,9 @@ export class Delivery {
     nullable: true,
   })
   customerGeom: { type: string; coordinates: number[] };
+
+  @Column({ nullable: true })
+  restaurantAddress: string;
 
   @Column({
     type: 'geometry',

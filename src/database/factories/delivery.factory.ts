@@ -17,7 +17,8 @@ define(Delivery, (faker: typeof Faker, context: Context) => {
   delivery.driverId = faker.random.uuid();
   delivery.shippingFee = faker.random.number({ min: 5000, max: 30000 });
   delivery.status = deliveryStatus;
-  delivery.address = faker.address.streetAddress(true);
+  delivery.customerAddress = faker.address.streetAddress(true);
+  delivery.restaurantAddress = faker.address.streetAddress(true);
   delivery.order = order;
 
   const customerGeom = {

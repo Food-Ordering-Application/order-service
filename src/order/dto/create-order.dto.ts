@@ -7,4 +7,6 @@ export class CreateOrderDto {
   cashierId?: string;
   restaurantGeom?: { type: string; coordinates: number[] };
   customerGeom?: { type: string; coordinates: number[] };
+  restaurantAddress: string;
+  customerAddress: string;
 }

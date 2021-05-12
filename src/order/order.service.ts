@@ -50,6 +50,8 @@ export class OrderService {
       cashierId,
       restaurantGeom,
       customerGeom,
+      restaurantAddress,
+      customerAddress,
     } = createOrderDto;
     try {
       // Tạo và lưu orderItem
@@ -77,22 +79,19 @@ export class OrderService {
         // Tạo và lưu delivery
         const delivery = new Delivery();
         delivery.customerId = customerId;
-        delivery.status = DeliveryStatus.WAITING_DRIVER;
+        delivery.status = DeliveryStatus.DRAFT;
         delivery.restaurantGeom = restaurantGeom;
+        delivery.restaurantAddress = restaurantAddress;
 
         /* Nếu customer có địa chỉ */
         if (customerGeom) {
-          console.log('CALCULATE SHIPPING FEE');
-          console.log(restaurantGeom.coordinates[0]);
-          console.log(restaurantGeom.coordinates[1]);
-          console.log(customerGeom.coordinates[0]);
-          console.log(customerGeom.coordinates[1]);
           const { distance, shippingFee } = await calculateShippingFee(
             this.deliveryRepository,
             restaurantGeom,
             customerGeom,
           );
           delivery.customerGeom = customerGeom;
+          delivery.customerAddress = customerAddress;
           delivery.shippingFee = shippingFee;
           delivery.distance = Math.floor(distance);
           order.grandTotal = order.subTotal + delivery.shippingFee;
@@ -681,8 +680,8 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
-      //TODO: Update lại thông tin address, customerGeom và tính toán lại shippingFee của delivery
-      order.delivery.address = address;
+      //TODO: Update lại thông tin customerAddress, customerGeom và tính toán lại shippingFee của delivery
+      order.delivery.customerAddress = address;
       order.delivery.customerGeom = geom;
       const { distance, shippingFee } = await calculateShippingFee(
         this.deliveryRepository,
