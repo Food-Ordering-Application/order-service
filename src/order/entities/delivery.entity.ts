@@ -40,6 +40,9 @@ export class Delivery {
   })
   restaurantGeom: { type: string; coordinates: number[] };
 
+  @Column({ nullable: true })
+  distance: number;
+
   @Column({ default: 15000, nullable: true })
   shippingFee: number;
 

@@ -72,6 +72,7 @@ export class OrderService {
         (orderItem.price + totalPriceToppings) * orderItem.quantity;
       await this.orderRepository.save(order);
       // Nếu là order bên salechannel thì có customerId
+      let newOrder;
       if (customerId) {
         // Tạo và lưu delivery
         const delivery = new Delivery();
@@ -86,28 +87,31 @@ export class OrderService {
           console.log(restaurantGeom.coordinates[1]);
           console.log(customerGeom.coordinates[0]);
           console.log(customerGeom.coordinates[1]);
-          delivery.shippingFee = await calculateShippingFee(
+          const { distance, shippingFee } = await calculateShippingFee(
             this.deliveryRepository,
             restaurantGeom,
             customerGeom,
           );
+          delivery.customerGeom = customerGeom;
+          delivery.shippingFee = shippingFee;
+          delivery.distance = Math.floor(distance);
           order.grandTotal = order.subTotal + delivery.shippingFee;
         }
 
         delivery.order = order;
         await this.deliveryRepository.save(delivery);
-        order.delivery = delivery;
+        delete delivery.order;
+        newOrder = { ...order, delivery: delivery };
       } else {
         // Nếu là order bên POS thì có cashierId
         order.cashierId = cashierId;
         order.grandTotal = order.subTotal;
-        await this.orderRepository.save(order);
       }
-
+      await this.orderRepository.save(order);
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
-        order,
+        order: customerId ? newOrder : order,
       };
     } catch (error) {
       this.logger.error(error);
@@ -680,11 +684,13 @@ export class OrderService {
       //TODO: Update lại thông tin address, customerGeom và tính toán lại shippingFee của delivery
       order.delivery.address = address;
       order.delivery.customerGeom = geom;
-      order.delivery.shippingFee = await calculateShippingFee(
+      const { distance, shippingFee } = await calculateShippingFee(
         this.deliveryRepository,
         order.delivery.restaurantGeom,
         geom,
       );
+      order.delivery.shippingFee = shippingFee;
+      order.delivery.distance = distance;
       this.deliveryRepository.save(order.delivery);
       return {
         status: HttpStatus.OK,

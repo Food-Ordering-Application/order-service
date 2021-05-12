@@ -144,12 +144,17 @@ const compare = (
   return 0;
 };
 
+interface ICalculateShippingFeeResponse {
+  shippingFee: number;
+  distance: number;
+}
+
 //* Calculate shippingFee
 export const calculateShippingFee = async (
   deliveryRepository: Repository<Delivery>,
   restaurantGeom,
   customerGeom,
-): Promise<number> => {
+): Promise<ICalculateShippingFeeResponse> => {
   let shippingFee;
   const { st_distance } = await deliveryRepository
     .createQueryBuilder('delivery')
@@ -160,7 +165,6 @@ export const calculateShippingFee = async (
         )`,
     )
     .getRawOne();
-  console.log(st_distance);
   /* Nếu khoảng cách <3km thì phí ship là 15000đồng, mỗi 1km 5000 đồng*/
   if (st_distance <= FIRST_SHIPPING_KILOMETER)
     shippingFee = FIRST_THREE_KILOMETER_FEE;
@@ -171,5 +175,5 @@ export const calculateShippingFee = async (
     shippingFee =
       FIRST_THREE_KILOMETER_FEE + (extraKilometer + 1) * EXTRA_KILOMETER_FEE;
   }
-  return shippingFee;
+  return { shippingFee, distance: st_distance };
 };
