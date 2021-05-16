@@ -22,7 +22,7 @@ export class OrderItem {
   @Column()
   price: number;
 
-  @Column()
+  @Column({ default: 30000 })
   subTotal: number;
 
   @Column()
