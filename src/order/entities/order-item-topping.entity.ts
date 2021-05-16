@@ -8,7 +8,7 @@ export class OrderItemTopping {
   id: string;
 
   @Column()
-  menuItemToppingId: string;
+  toppingItemId: string;
 
   @Column()
   name: string;

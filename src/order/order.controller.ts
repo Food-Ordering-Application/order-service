@@ -11,9 +11,9 @@ import {
   RemoveOrderItemDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
+  GetOrderDetailDto,
 } from './dto';
 import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
-import { GetOrderDetailDto } from './dto/get-order-detail.dto';
 
 @Controller()
 export class OrderController {
