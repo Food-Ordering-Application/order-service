@@ -1,3 +1,4 @@
+import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,7 +16,11 @@ import {
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Delivery, Order, OrderItem, OrderItemTopping } from './entities';
 import { PType, OrdStatus, DeliveryStatus, GetRestaurantOrder } from './enums';
-import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
+import {
+  ICreateOrderResponse,
+  IOrdersResponse,
+  ISaveOrderResponse,
+} from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
   calculateOrderSubTotal,
@@ -701,5 +706,20 @@ export class OrderService {
         order: null,
       };
     }
+  }
+
+  async savePosOrder(
+    savePosOrderDto: SavePosOrderDto,
+  ): Promise<ISaveOrderResponse> {
+    const { order } = savePosOrderDto;
+    const orderResult = await this.orderRepository.save(order);
+    const { id } = orderResult;
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: 'Save order successfully',
+      data: {
+        orderId: id,
+      },
+    };
   }
 }

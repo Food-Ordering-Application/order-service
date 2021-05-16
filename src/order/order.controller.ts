@@ -9,10 +9,15 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  SavePosOrderDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
-import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
+import {
+  ICreateOrderResponse,
+  IOrdersResponse,
+  ISaveOrderResponse,
+} from './interfaces';
 import { GetOrderDetailDto } from './dto/get-order-detail.dto';
 
 @Controller()
@@ -105,5 +110,13 @@ export class OrderController {
   ): Promise<ICreateOrderResponse> {
     console.log('haha');
     return this.orderService.updateDeliveryAddress(updateDeliveryAddressDto);
+  }
+
+  @MessagePattern('savePosOrder')
+  async savePosOrder(
+    @Payload()
+    savePosOrderDto: SavePosOrderDto,
+  ): Promise<ISaveOrderResponse> {
+    return this.orderService.savePosOrder(savePosOrderDto);
   }
 }
