@@ -177,7 +177,8 @@ export class OrderService {
         sendItem,
         order.orderItems,
       );
-      // Nếu item gửi lên orderItem đã có sẵn và  giống y chang topping trong order thì tăng số lượng orderItem đã có sẵn
+      // Nếu item gửi lên orderItem đã có sẵn và  giống y chang topping
+      // trong order thì tăng số lượng orderItem đã có sẵn
       if (foundOrderItem) {
         foundOrderItem.quantity += sendItem.quantity;
         await this.orderItemRepository.save(foundOrderItem);
@@ -207,11 +208,6 @@ export class OrderService {
       order.grandTotal = calculateOrderGrandToTal(order);
       // Lưu lại order
       await this.orderRepository.save(order);
-      // Nếu trường delivery không falsy tức là order bên salechannel
-      // if (order.delivery) {
-      //   order.delivery.total = calculateDeliveryTotal(order);
-      //   await this.deliveryRepository.save(order.delivery);
-      // }
       return {
         status: HttpStatus.OK,
         message: 'New orderItem added successfully',

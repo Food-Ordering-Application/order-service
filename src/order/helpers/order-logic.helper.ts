@@ -62,6 +62,24 @@ export const checkEqualTopping = (
   sendItemToppings: OrderItemToppingDto[],
   orderItemToppings: OrderItemTopping[],
 ) => {
+  //? Nếu sendItemToppings === null và orderItemToppings === null hoặc []
+  if (
+    !sendItemToppings &&
+    (!orderItemToppings || orderItemToppings.length === 0)
+  ) {
+    return true;
+  } else if (
+    !sendItemToppings &&
+    orderItemToppings &&
+    orderItemToppings.length > 0
+  ) {
+    return false;
+  } else if (
+    sendItemToppings &&
+    (!orderItemToppings || orderItemToppings.length === 0)
+  ) {
+    return false;
+  }
   // Sort 2 array
   sendItemToppings.sort(compare);
   orderItemToppings.sort(compare);
