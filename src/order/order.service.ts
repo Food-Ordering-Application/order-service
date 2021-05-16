@@ -245,7 +245,6 @@ export class OrderService {
       );
 
       orderItem.quantity -= 1;
-      console.log('Orderitem quantity', orderItem.quantity);
       // Nếu quantity là 0 thì xóa orderItem khỏi order
       if (orderItem.quantity < 1) {
         const newOrderItems = order.orderItems.filter(

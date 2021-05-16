@@ -49,6 +49,7 @@ export const createAndStoreOrderItem = async (
     }
     addOrderItem.orderItemToppings = addOrderItemToppings;
   }
+  addOrderItem.subTotal = totalPriceToppings + orderItemPrice;
   const addOrderItems: OrderItem[] = [];
   addOrderItems.push(addOrderItem);
   await orderItemRepository.save(addOrderItem);

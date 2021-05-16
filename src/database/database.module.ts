@@ -15,11 +15,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DB'),
         entities: [__dirname + '/../**/*.entity.{js,ts}'],
-        migrations: [__dirname + '/../**/*.migration.{js,ts}'],
+        migrations: [__dirname + '/migrations/**/*.{js,ts}'],
         synchronize: true,
         seeds: [__dirname + '/seeders/**/*{.ts,.js}'],
         factories: [__dirname + '/factories/**/*{.ts,.js}'],
         ssl: true,
+        migrationsDir: 'src/database/migrations',
+        cli: {
+          migrationsDir: 'src/database/migrations',
+        },
         extra: {
           ssl: {
             rejectUnauthorized: false,

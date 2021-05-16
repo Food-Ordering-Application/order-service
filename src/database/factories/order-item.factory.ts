@@ -19,5 +19,6 @@ define(OrderItem, (faker: typeof Faker, context: Context) => {
   orderItem.discount = faker.random.number({ min: 0, max: 50000 });
   orderItem.quantity = faker.random.number({ min: 0, max: 5 });
   orderItem.state = _.sample(Object.values(State)) as State;
+  orderItem.subTotal = faker.random.number({ min: 10000, max: 300000 });
   return orderItem;
 });

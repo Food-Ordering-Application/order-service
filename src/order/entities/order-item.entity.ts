@@ -23,6 +23,9 @@ export class OrderItem {
   price: number;
 
   @Column()
+  subTotal: number;
+
+  @Column()
   name: string;
 
   @Column()
