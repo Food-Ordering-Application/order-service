@@ -32,6 +32,7 @@ import {
 import {
   ICreateOrderResponse,
   IOrdersResponse,
+  ISaveOrderResponse,
   ISimpleResponse,
 } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';

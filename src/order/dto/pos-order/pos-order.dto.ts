@@ -1,4 +1,4 @@
-import { PType, OrdStatus } from 'src/order/enums';
+import { OrdStatus } from 'src/order/enums';
 import { PosOrderItemDto } from './pos-order-item.dto';
 
 export class PosOrderDto {
@@ -12,7 +12,6 @@ export class PosOrderDto {
   note: string;
   createdAt: Date;
   updatedAt: Date;
-  paymentType: PType;
   status: OrdStatus;
   orderItems: PosOrderItemDto[];
 }
