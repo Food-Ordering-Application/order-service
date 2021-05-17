@@ -40,6 +40,9 @@ export class OrderItem {
   @OneToMany(
     () => OrderItemTopping,
     (orderItemTopping) => orderItemTopping.orderItem,
+    {
+      cascade: ['update', 'insert'],
+    },
   )
   orderItemToppings: OrderItemTopping[];
 }

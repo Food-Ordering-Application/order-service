@@ -45,7 +45,9 @@ export class Order {
   @Column({ enum: OrdStatus })
   status: string;
 
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.order)
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {
+    cascade: ['update', 'insert'],
+  })
   orderItems: OrderItem[];
 
   @OneToOne(() => Delivery, (delivery) => delivery.order) // specify inverse side as a second parameter

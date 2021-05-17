@@ -1,3 +1,4 @@
+import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -783,5 +784,19 @@ export class OrderService {
         message: error.message,
       };
     }
+  }
+
+  async savePosOrder(
+    savePosOrderDto: SavePosOrderDto,
+  ): Promise<ISaveOrderResponse> {
+    const { order } = savePosOrderDto;
+    const orderResult = await this.orderRepository.save(order);
+    return {
+      status: HttpStatus.OK,
+      message: 'Save order successfully',
+      data: {
+        order: orderResult,
+      },
+    };
   }
 }

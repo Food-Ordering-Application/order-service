@@ -9,6 +9,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  SavePosOrderDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
   GetOrderDetailDto,
@@ -18,6 +19,7 @@ import {
   ICreateOrderResponse,
   IOrdersResponse,
   ISimpleResponse,
+  ISaveOrderResponse,
 } from './interfaces';
 
 @Controller()
@@ -117,5 +119,13 @@ export class OrderController {
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<ISimpleResponse> {
     return this.orderService.confirmOrderCheckout(confirmOrderCheckoutDto);
+  }
+
+  @MessagePattern('savePosOrder')
+  async savePosOrder(
+    @Payload()
+    savePosOrderDto: SavePosOrderDto,
+  ): Promise<ISaveOrderResponse> {
+    return this.orderService.savePosOrder(savePosOrderDto);
   }
 }
