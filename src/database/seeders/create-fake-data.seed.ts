@@ -5,25 +5,21 @@ import {
   OrderItemTopping,
 } from '../../order/entities';
 import { Factory, Seeder } from 'typeorm-seeding';
-import { PType, OrdStatus, DeliveryStatus } from '../../order/enums';
+import { PaymentType, OrdStatus, DeliveryStatus } from '../../order/enums';
 import * as _ from 'lodash';
 
 export default class CreateFakeData implements Seeder {
   public async run(factory: Factory): Promise<any> {
     const draftOrders = await factory(Order)({
-      paymentType: PType.COD,
       orderStatus: OrdStatus.DRAFT,
     }).createMany(5);
     const orderedOrders = await factory(Order)({
-      paymentType: PType.COD,
       orderStatus: OrdStatus.ORDERED,
     }).createMany(5);
     const completedOrders = await factory(Order)({
-      paymentType: PType.COD,
       orderStatus: OrdStatus.COMPLETED,
     }).createMany(10);
     const cancelledOrders = await factory(Order)({
-      paymentType: PType.COD,
       orderStatus: OrdStatus.CANCELLED,
     }).createMany(5);
 

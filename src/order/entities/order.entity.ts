@@ -7,9 +7,8 @@ import {
   UpdateDateColumn,
   OneToOne,
 } from 'typeorm';
-import { PType, OrdStatus } from '../enums';
-import { Delivery } from './delivery.entity';
-import { OrderItem } from './order-item.entity';
+import { PaymentType, OrdStatus } from '../enums';
+import { Delivery, OrderItem, Payment } from './index';
 
 @Entity()
 export class Order {
@@ -43,9 +42,6 @@ export class Order {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ enum: PType })
-  paymentType: string;
-
   @Column({ enum: OrdStatus })
   status: string;
 
@@ -54,4 +50,7 @@ export class Order {
 
   @OneToOne(() => Delivery, (delivery) => delivery.order) // specify inverse side as a second parameter
   delivery: Delivery;
+
+  @OneToOne(() => Payment, (payment) => payment.order)
+  payment: Payment;
 }

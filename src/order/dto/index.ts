@@ -12,3 +12,4 @@ export { GetAllRestaurantOrderDto } from './get-all-restaurant-orders.dto';
 export { GetOrderDetailDto } from './get-order-detail.dto';
 export { UpdateOrderItemQuantityDto } from './update-orderitem-quantity.dto';
 export { UpdateDeliveryAddressDto } from './update-delivery-address.dto';
+export { ConfirmOrderCheckoutDto } from './confirm-order-checkout.dto';

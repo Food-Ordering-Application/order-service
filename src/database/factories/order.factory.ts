@@ -4,12 +4,11 @@ import { Order } from '../../order/entities';
 import * as _ from 'lodash';
 
 interface Context {
-  paymentType: string;
   orderStatus: string;
 }
 
 define(Order, (faker: typeof Faker, context: Context) => {
-  const { orderStatus, paymentType } = context;
+  const { orderStatus } = context;
 
   const myArray = [
     'f1db260f-b2fa-4862-9041-2a7d3b481733',
@@ -31,7 +30,6 @@ define(Order, (faker: typeof Faker, context: Context) => {
   order.grandTotal = faker.random.number({ min: 20000, max: 300000 });
   order.itemDiscount = faker.random.number({ min: 20000, max: 300000 });
   order.discount = faker.random.number({ min: 0, max: 10000 });
-  order.paymentType = paymentType;
   order.note = faker.lorem.paragraph();
   order.status = orderStatus;
   order.createdAt = new Date(

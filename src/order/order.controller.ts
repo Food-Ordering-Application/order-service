@@ -12,8 +12,13 @@ import {
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
   GetOrderDetailDto,
+  ConfirmOrderCheckoutDto,
 } from './dto';
-import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
+import {
+  ICreateOrderResponse,
+  IOrdersResponse,
+  ISimpleResponse,
+} from './interfaces';
 
 @Controller()
 export class OrderController {
@@ -103,7 +108,14 @@ export class OrderController {
     @Payload()
     updateDeliveryAddressDto: UpdateDeliveryAddressDto,
   ): Promise<ICreateOrderResponse> {
-    console.log('haha');
     return this.orderService.updateDeliveryAddress(updateDeliveryAddressDto);
+  }
+
+  @MessagePattern('confirmOrderCheckout')
+  async confirmOrderCheckout(
+    @Payload()
+    confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
+  ): Promise<ISimpleResponse> {
+    return this.orderService.confirmOrderCheckout(confirmOrderCheckoutDto);
   }
 }

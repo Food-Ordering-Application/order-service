@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   AddNewItemToOrderDto,
+  ConfirmOrderCheckoutDto,
   GetAllRestaurantOrderDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
@@ -13,9 +14,25 @@ import {
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Delivery, Order, OrderItem, OrderItemTopping } from './entities';
-import { PType, OrdStatus, DeliveryStatus, GetRestaurantOrder } from './enums';
-import { ICreateOrderResponse, IOrdersResponse } from './interfaces';
+import {
+  Delivery,
+  Order,
+  OrderItem,
+  OrderItemTopping,
+  Payment,
+} from './entities';
+import {
+  OrdStatus,
+  DeliveryStatus,
+  GetRestaurantOrder,
+  PaymentType,
+  PaymentStatus,
+} from './enums';
+import {
+  ICreateOrderResponse,
+  IOrdersResponse,
+  ISimpleResponse,
+} from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
   calculateOrderSubTotal,
@@ -38,6 +55,8 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItem>,
     @InjectRepository(OrderItemTopping)
     private orderItemToppingRepository: Repository<OrderItemTopping>,
+    @InjectRepository(Payment)
+    private paymentRepository: Repository<Payment>,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -66,8 +85,6 @@ export class OrderService {
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
-      // paymentType mặc định là COD, status là DRAFT
-      order.paymentType = PType.COD;
       order.status = OrdStatus.DRAFT;
       order.orderItems = addOrderItems;
       order.subTotal =
@@ -700,6 +717,70 @@ export class OrderService {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
+      };
+    }
+  }
+
+  async confirmOrderCheckout(
+    confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
+  ): Promise<ISimpleResponse> {
+    try {
+      const {
+        note,
+        paymentType,
+        orderId,
+        customerId,
+      } = confirmOrderCheckoutDto;
+
+      //TODO: Lấy thông tin order
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+      //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
+      if (order.delivery.customerId !== customerId) {
+        return {
+          status: HttpStatus.FORBIDDEN,
+          message: 'Forbidden',
+        };
+      }
+
+      //TODO: Thêm note cho order nếu có
+      if (note) {
+        order.note = note;
+        this.orderRepository.save(order);
+      }
+      //TODO: Tạo payment entity với phương thức thanh toán
+      const payment = new Payment();
+      payment.amount = calculateOrderGrandToTal(order);
+      payment.order = order;
+      payment.status = PaymentStatus.PENDING;
+      payment.type = paymentType;
+      this.paymentRepository.save(payment);
+
+      switch (paymentType) {
+        case PaymentType.COD:
+          break;
+        case PaymentType.PAYPAL:
+          break;
+        case PaymentType.VISA_MASTERCARD:
+          break;
+      }
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Confirm order checkout successfully',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
       };
     }
   }
