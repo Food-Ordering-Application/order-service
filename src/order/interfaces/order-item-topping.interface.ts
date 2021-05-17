@@ -1,6 +1,6 @@
 export interface IOrderItemTopping {
   id: string;
-  menuItemToppingId?: string;
+  toppingItemId?: string;
   quantity?: number;
   price?: number;
   state?: string;
