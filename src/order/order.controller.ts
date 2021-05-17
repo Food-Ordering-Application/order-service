@@ -12,13 +12,13 @@ import {
   SavePosOrderDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
+  GetOrderDetailDto,
 } from './dto';
 import {
   ICreateOrderResponse,
   IOrdersResponse,
   ISaveOrderResponse,
 } from './interfaces';
-import { GetOrderDetailDto } from './dto/get-order-detail.dto';
 
 @Controller()
 export class OrderController {

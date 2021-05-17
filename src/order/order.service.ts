@@ -120,6 +120,7 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      console.log('Error in createOrder');
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,

@@ -2,7 +2,7 @@ import { IsNumber, IsString } from 'class-validator';
 
 export class OrderItemTopping {
   @IsString()
-  menuItemToppingId?: string;
+  toppingItemId?: string;
 
   @IsString()
   name?: string;

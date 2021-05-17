@@ -36,8 +36,7 @@ export const createAndStoreOrderItem = async (
     const addOrderItemToppings: OrderItemTopping[] = [];
     for (let i = 0; i < orderItemToppings.length; i++) {
       const addOrderItemTopping = new OrderItemTopping();
-      addOrderItemTopping.menuItemToppingId =
-        orderItemToppings[i].menuItemToppingId;
+      addOrderItemTopping.toppingItemId = orderItemToppings[i].toppingItemId;
       addOrderItemTopping.price = orderItemToppings[i].price;
       addOrderItemTopping.quantity = orderItemToppings[i].quantity;
       addOrderItemTopping.name = orderItemToppings[i].name;
@@ -90,8 +89,7 @@ export const checkEqualTopping = (
   for (let i = 0; i < sendItemToppings.length; i++) {
     // Nếu từng phần tử 2 bên không giống nhau
     if (
-      sendItemToppings[i].menuItemToppingId !==
-      orderItemToppings[i].menuItemToppingId
+      sendItemToppings[i].toppingItemId !== orderItemToppings[i].toppingItemId
     ) {
       return false;
     } else {
@@ -161,8 +159,8 @@ const compare = (
   a: OrderItemTopping | OrderItemToppingDto,
   b: OrderItemTopping | OrderItemToppingDto,
 ) => {
-  if (a.menuItemToppingId < b.menuItemToppingId) return -1;
-  if (a.menuItemToppingId > b.menuItemToppingId) return 1;
+  if (a.toppingItemId < b.toppingItemId) return -1;
+  if (a.toppingItemId > b.toppingItemId) return 1;
   return 0;
 };
 
