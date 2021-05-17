@@ -714,12 +714,11 @@ export class OrderService {
   ): Promise<ISaveOrderResponse> {
     const { order } = savePosOrderDto;
     const orderResult = await this.orderRepository.save(order);
-    const { id } = orderResult;
     return {
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      status: HttpStatus.OK,
       message: 'Save order successfully',
       data: {
-        orderId: id,
+        order: orderResult,
       },
     };
   }
