@@ -14,6 +14,7 @@ import {
   UpdateOrderItemQuantityDto,
   GetOrderDetailDto,
   ConfirmOrderCheckoutDto,
+  ApprovePaypalOrderDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -21,6 +22,7 @@ import {
   ISimpleResponse,
   ISaveOrderResponse,
   IConfirmOrderCheckoutResponse,
+  IApprovePaypalOrder,
 } from './interfaces';
 
 @Controller()
@@ -120,6 +122,14 @@ export class OrderController {
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
     return this.orderService.confirmOrderCheckout(confirmOrderCheckoutDto);
+  }
+
+  @MessagePattern('approvePaypalOrder')
+  async approvePaypalOrder(
+    @Payload()
+    approvePaypalOrderDto: ApprovePaypalOrderDto,
+  ): Promise<IApprovePaypalOrder> {
+    return this.orderService.approvePaypalOrder(approvePaypalOrderDto);
   }
 
   @MessagePattern('savePosOrder')

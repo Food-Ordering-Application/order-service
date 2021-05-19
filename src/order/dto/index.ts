@@ -17,3 +17,4 @@ export { PosOrderItemToppingDto } from './pos-order/pos-order-item-topping.dto';
 export { PosOrderItemDto } from './pos-order/pos-order-item.dto';
 export { PosOrderDto } from './pos-order/pos-order.dto';
 export { SavePosOrderDto } from './pos-order/save-pos-order.dto';
+export { ApprovePaypalOrderDto } from './approve-paypal-order.dto';

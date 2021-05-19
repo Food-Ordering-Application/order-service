@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   AddNewItemToOrderDto,
+  ApprovePaypalOrderDto,
   ConfirmOrderCheckoutDto,
   GetAllRestaurantOrderDto,
   GetOrderAssociatedWithCusAndResDto,
@@ -30,6 +31,7 @@ import {
   PaymentStatus,
 } from './enums';
 import {
+  IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   IOrdersResponse,
@@ -47,6 +49,7 @@ import {
 import paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
+import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 @Injectable()
@@ -80,7 +83,6 @@ export class OrderService {
       customerAddress,
     } = createOrderDto;
     try {
-      console.log('push something to debug');
       // Tạo và lưu orderItem
       const {
         addOrderItems,
@@ -836,6 +838,66 @@ export class OrderService {
       return {
         status: HttpStatus.OK,
         message: 'Confirm order checkout successfully',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      };
+    }
+  }
+
+  async approvePaypalOrder(
+    approvePaypalOrderDto: ApprovePaypalOrderDto,
+  ): Promise<IApprovePaypalOrder> {
+    try {
+      const { paypalOrderId, orderId, customerId } = approvePaypalOrderDto;
+
+      //TODO: Lấy thông tin order
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.payment', 'payment')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+
+      //TODO: Nếu là order salechannel
+      if (order.delivery) {
+        //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
+        if (order.delivery.customerId !== customerId) {
+          return {
+            status: HttpStatus.FORBIDDEN,
+            message: 'Forbidden',
+          };
+        }
+      }
+
+      //TODO: Call PayPal to capture the order
+      const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(
+        paypalOrderId,
+      );
+      request.requestBody({});
+
+      const capture = await client().execute(request);
+
+      //TODO: Save the capture ID to your database.
+      const captureID =
+        capture.result.purchase_units[0].payments.captures[0].id;
+      //TODO: Lưu lại captureId, update order status, payment status.
+      order.payment.captureId = captureID;
+      order.status = OrdStatus.ORDERED;
+      order.payment.status = PaymentStatus.COMPLETED;
+      await Promise.all([
+        this.orderRepository.save(order),
+        this.paymentRepository.save(order.payment),
+      ]);
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Approve paypal order successfully',
       };
     } catch (error) {
       this.logger.error(error);

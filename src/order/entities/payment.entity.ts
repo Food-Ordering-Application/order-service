@@ -22,6 +22,9 @@ export class Payment {
   status: string;
 
   @Column()
+  captureId: string;
+
+  @Column()
   amount: number;
 
   @CreateDateColumn()
