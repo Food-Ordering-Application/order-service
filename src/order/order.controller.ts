@@ -20,6 +20,7 @@ import {
   IOrdersResponse,
   ISimpleResponse,
   ISaveOrderResponse,
+  IConfirmOrderCheckoutResponse,
 } from './interfaces';
 
 @Controller()
@@ -117,7 +118,7 @@ export class OrderController {
   async confirmOrderCheckout(
     @Payload()
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
-  ): Promise<ISimpleResponse> {
+  ): Promise<IConfirmOrderCheckoutResponse> {
     return this.orderService.confirmOrderCheckout(confirmOrderCheckoutDto);
   }
 

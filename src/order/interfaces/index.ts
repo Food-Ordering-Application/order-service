@@ -7,3 +7,4 @@ export { IOrdersResponse } from './orders-response.interface';
 export { IIdNameAndPriceData } from './id-name-and-price-data.interface';
 export { ISimpleResponse } from './simple-response.interface';
 export { ISaveOrderResponse } from './save-order-response.interface';
+export { IConfirmOrderCheckoutResponse } from './confirm-order-checkout-response.interface';

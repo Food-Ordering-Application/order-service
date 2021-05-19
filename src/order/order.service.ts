@@ -30,6 +30,7 @@ import {
   PaymentStatus,
 } from './enums';
 import {
+  IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   IOrdersResponse,
   ISaveOrderResponse,
@@ -43,7 +44,11 @@ import {
   findOrderItemIndex,
   calculateShippingFee,
 } from './helpers/order-logic.helper';
+import paypal from '@paypal/checkout-server-sdk';
+import { client } from '../config/paypal';
+import axios from 'axios';
 
+const DEFAULT_EXCHANGE_RATE = 0.00004;
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -75,6 +80,7 @@ export class OrderService {
       customerAddress,
     } = createOrderDto;
     try {
+      console.log('push something to debug');
       // Tạo và lưu orderItem
       const {
         addOrderItems,
@@ -725,7 +731,7 @@ export class OrderService {
 
   async confirmOrderCheckout(
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
-  ): Promise<ISimpleResponse> {
+  ): Promise<IConfirmOrderCheckoutResponse> {
     try {
       const {
         note,
@@ -744,14 +750,16 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
-      //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
-      if (order.delivery.customerId !== customerId) {
-        return {
-          status: HttpStatus.FORBIDDEN,
-          message: 'Forbidden',
-        };
+      //TODO: Nếu là order salechannel
+      if (order.delivery) {
+        //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
+        if (order.delivery.customerId !== customerId) {
+          return {
+            status: HttpStatus.FORBIDDEN,
+            message: 'Forbidden',
+          };
+        }
       }
-
       //TODO: Thêm note cho order nếu có
       if (note) {
         order.note = note;
@@ -769,9 +777,60 @@ export class OrderService {
         case PaymentType.COD:
           break;
         case PaymentType.PAYPAL:
-          break;
-        case PaymentType.VISA_MASTERCARD:
-          break;
+          const exchangeRate: { VND_USD: number } = await axios.get(
+            'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
+          );
+          const rate = exchangeRate.VND_USD | DEFAULT_EXCHANGE_RATE;
+          const subTotalUSD = order.subTotal * rate;
+          const grandTotalUSD = order.grandTotal * rate;
+          const shippingFeeUSD = order.delivery.shippingFee * rate;
+          const items = order.orderItems.map((orderItem) => {
+            const orderItemPriceUSD = orderItem.subTotal * rate;
+            return {
+              name: orderItem.name,
+              unit_amount: {
+                currency_code: 'USD',
+                value: orderItemPriceUSD.toString(),
+              },
+              quantity: orderItem.quantity,
+            };
+          });
+
+          console.log('SubTotalUSD', subTotalUSD);
+          console.log('GrandTotalUSD', grandTotalUSD);
+          console.log('ShippingFeeUSD', shippingFeeUSD);
+
+          //TODO: Tạo paypal order
+          const request = new paypal.orders.OrdersCreateRequest();
+          request.prefer('return=representation');
+          request.requestBody({
+            intent: 'CAPTURE',
+            purchase_units: [
+              {
+                amount: {
+                  currency_code: 'USD',
+                  value: grandTotalUSD.toString(),
+                },
+                breakdown: {
+                  item_total: {
+                    currency_code: 'USD',
+                    value: subTotalUSD.toString(),
+                  },
+                  shipping: {
+                    currency_code: 'USD',
+                    value: shippingFeeUSD.toString(),
+                  },
+                },
+                items: items,
+              },
+            ],
+          });
+          const paypalOrder = await client().execute(request);
+          return {
+            status: HttpStatus.OK,
+            message: 'Confirm order checkout successfully',
+            paypalOrderId: paypalOrder.result.id,
+          };
       }
 
       return {
