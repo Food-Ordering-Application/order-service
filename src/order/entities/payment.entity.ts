@@ -25,6 +25,9 @@ export class Payment {
   captureId: string;
 
   @Column()
+  paypalOrderId: string;
+
+  @Column()
   amount: number;
 
   @CreateDateColumn()

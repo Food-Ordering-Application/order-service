@@ -52,6 +52,7 @@ import axios from 'axios';
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 const DEFAULT_EXCHANGE_RATE = 0.00004;
+const PERCENT_PLATFORM_FEE = 0.2;
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -740,6 +741,7 @@ export class OrderService {
         paymentType,
         orderId,
         customerId,
+        paypalMerchantId,
       } = confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
@@ -773,7 +775,6 @@ export class OrderService {
       payment.order = order;
       payment.status = PaymentStatus.PENDING;
       payment.type = paymentType;
-      this.paymentRepository.save(payment);
 
       switch (paymentType) {
         case PaymentType.COD:
@@ -786,6 +787,8 @@ export class OrderService {
           const subTotalUSD = order.subTotal * rate;
           const grandTotalUSD = order.grandTotal * rate;
           const shippingFeeUSD = order.delivery.shippingFee * rate;
+          const amountPlatformFee =
+            subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD;
           const items = order.orderItems.map((orderItem) => {
             const orderItemPriceUSD = orderItem.subTotal * rate;
             return {
@@ -813,6 +816,20 @@ export class OrderService {
                   currency_code: 'USD',
                   value: grandTotalUSD.toString(),
                 },
+                payment_instruction: {
+                  disbursement_mode: 'INSTANT',
+                  platform_fees: [
+                    {
+                      amount: {
+                        currency_code: 'USD',
+                        value: amountPlatformFee.toString(),
+                      },
+                      payee: {
+                        merchant_id: paypalMerchantId,
+                      },
+                    },
+                  ],
+                },
                 breakdown: {
                   item_total: {
                     currency_code: 'USD',
@@ -828,12 +845,15 @@ export class OrderService {
             ],
           });
           const paypalOrder = await client().execute(request);
+          payment.paypalOrderId = paypalOrder.result.id;
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
             paypalOrderId: paypalOrder.result.id,
           };
       }
+      //TODO: Lưu lại paypalOrderId
+      this.paymentRepository.save(payment);
 
       return {
         status: HttpStatus.OK,
