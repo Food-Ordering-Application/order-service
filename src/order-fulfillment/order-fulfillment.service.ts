@@ -6,10 +6,14 @@ import { DELIVERY_SERVICE, NOTIFICATION_SERVICE } from 'src/constants';
 import { Delivery, Order, Payment } from 'src/order/entities';
 import { Repository } from 'typeorm';
 import {
+  DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
-import { IRestaurantConfirmOrderResponse } from './interfaces';
+import {
+  IDriverPickedUpOrderResponse,
+  IRestaurantConfirmOrderResponse,
+} from './interfaces';
 
 @Injectable()
 export class OrderFulfillmentService {
@@ -46,6 +50,10 @@ export class OrderFulfillmentService {
       'orderHasBeenAssignedToDriverEvent',
       order,
     );
+  }
+
+  async sendDriverPickUpOrderEvent(order: Order) {
+    this.notificationServiceClient.emit('orderHasBeenPickedUpEvent', order);
   }
 
   async restaurantConfirmOrder(
@@ -85,7 +93,10 @@ export class OrderFulfillmentService {
 
     order.cashierId = cashierId;
     order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
-    await this.deliveryRepository.save(order.delivery);
+    await Promise.all([
+      this.orderRepository.save(order),
+      this.deliveryRepository.save(order.delivery),
+    ]);
 
     this.sendConfirmOrderEvent(order);
     return {
@@ -126,5 +137,43 @@ export class OrderFulfillmentService {
     await this.deliveryRepository.save(order.delivery);
 
     this.sendDriverAcceptOrderEvent(order);
+  }
+
+  async driverPickedUpOrder(
+    driverPickedUpOrderDto: DriverPickedUpOrderDto,
+  ): Promise<IDriverPickedUpOrderResponse> {
+    const { orderId } = driverPickedUpOrderDto;
+
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .where('order.id = :orderId', {
+        orderId: orderId,
+      })
+      .getOne();
+
+    if (!order) {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Order not found',
+      };
+    }
+
+    if (order.delivery?.status != DeliveryStatus.ON_GOING) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'Cannot confirm picked up order. Delivery status not valid to picked up order',
+      };
+    }
+
+    order.delivery.status = DeliveryStatus.PICKED_UP;
+    await this.deliveryRepository.save(order.delivery);
+
+    this.sendDriverPickUpOrderEvent(order);
+    return {
+      status: HttpStatus.OK,
+      message: 'Confirm picked up order successfully',
+    };
   }
 }

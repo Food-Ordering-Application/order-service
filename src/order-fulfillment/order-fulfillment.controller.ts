@@ -1,10 +1,14 @@
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import {
+  DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
-import { IRestaurantConfirmOrderResponse } from './interfaces';
+import {
+  IDriverPickedUpOrderResponse,
+  IRestaurantConfirmOrderResponse,
+} from './interfaces';
 import { OrderFulfillmentService } from './order-fulfillment.service';
 
 @Controller()
@@ -30,6 +34,16 @@ export class OrderFulfillmentController {
   ) {
     return this.orderFulfillmentService.handleUpdateDriverForOrder(
       updateDriverForOrderDto,
+    );
+  }
+
+  @MessagePattern('driverPickedUpOrder')
+  async driverPickedUpOrder(
+    @Payload()
+    driverPickedUpOrderDto: DriverPickedUpOrderDto,
+  ): Promise<IDriverPickedUpOrderResponse> {
+    return this.orderFulfillmentService.driverPickedUpOrder(
+      driverPickedUpOrderDto,
     );
   }
 }
