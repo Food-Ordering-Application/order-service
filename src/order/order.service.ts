@@ -1,7 +1,9 @@
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Inject, Logger } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NOTIFICATION_SERVICE } from 'src/constants';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -58,6 +60,7 @@ export class OrderService {
   private readonly logger = new Logger('OrderService');
 
   constructor(
+    @Inject(NOTIFICATION_SERVICE) private notiServiceClient: ClientProxy,
     @InjectRepository(Delivery)
     private deliveryRepository: Repository<Delivery>,
     @InjectRepository(Order)
@@ -135,7 +138,9 @@ export class OrderService {
         order.cashierId = cashierId;
         order.grandTotal = order.subTotal;
       }
-      await this.orderRepository.save(order);
+      const createdOrder = await this.orderRepository.save(order);
+      console.log('Need to emit event message order to notification.');
+      this.notiServiceClient.emit({ event: 'order_updated' }, createdOrder);
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
