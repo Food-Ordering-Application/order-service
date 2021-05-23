@@ -48,10 +48,9 @@ import {
   findOrderItemIndex,
   calculateShippingFee,
 } from './helpers/order-logic.helper';
-import paypal from '@paypal/checkout-server-sdk';
+import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
-import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
@@ -899,11 +898,9 @@ export class OrderService {
           };
         }
       }
-      console.log('Checkoutnodejssdk', checkoutNodeJssdk);
+      console.log('Checkoutnodejssdk', paypal);
       //TODO: Call PayPal to capture the order
-      const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(
-        paypalOrderId,
-      );
+      const request = new paypal.orders.OrdersCaptureRequest(paypalOrderId);
       request.requestBody({});
 
       const capture = await client().execute(request);
