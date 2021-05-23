@@ -1,5 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { RestaurantConfirmOrderDto } from './dto';
+import { IRestaurantConfirmOrderResponse } from './interfaces';
 import { OrderFulfillmentService } from './order-fulfillment.service';
 
 @Controller()
@@ -8,11 +10,13 @@ export class OrderFulfillmentController {
     private readonly orderFulfillmentService: OrderFulfillmentService,
   ) {}
 
-  @MessagePattern('createOrderAndFirstOrderItem')
-  async createOrderAndFirstOrderItem(@Payload() createOrderDto: any) {
-    // return this.orderFulfillmentService.createOrderAndFirstOrderItem(
-    //   createOrderDto,
-    // );
-    return null;
+  @MessagePattern('restaurantConfirmOrder')
+  async restaurantConfirmOrder(
+    @Payload()
+    restaurantConfirmOrderDto: RestaurantConfirmOrderDto,
+  ): Promise<IRestaurantConfirmOrderResponse> {
+    return this.orderFulfillmentService.restaurantConfirmOrder(
+      restaurantConfirmOrderDto,
+    );
   }
 }

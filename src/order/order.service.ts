@@ -947,6 +947,6 @@ export class OrderService {
   async placeOrder(order: Order) {
     order.status = OrdStatus.ORDERED;
     await this.orderRepository.save(order);
-    this.orderFulfillmentService.sendOrderEvent(order);
+    this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 }
