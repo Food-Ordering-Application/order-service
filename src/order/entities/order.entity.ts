@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
   OneToOne,
 } from 'typeorm';
-import { PaymentType, OrdStatus } from '../enums';
+import { OrdStatus } from '../enums';
 import { Delivery, OrderItem, Payment } from './index';
 
 @Entity()

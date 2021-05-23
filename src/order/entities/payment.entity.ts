@@ -7,7 +7,7 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { PaymentType, PaymentStatus } from '../enums';
+import { PaymentMethod, PaymentStatus } from '../enums';
 import { Order } from './order.entity';
 
 @Entity()
@@ -15,8 +15,8 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ enum: PaymentType })
-  type: string;
+  @Column({ enum: PaymentMethod })
+  method: string;
 
   @Column({ enum: PaymentStatus })
   status: string;
