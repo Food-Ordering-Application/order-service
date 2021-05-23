@@ -1,11 +1,13 @@
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import {
+  DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
 import {
+  IDriverCompleteOrderResponse,
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
 } from './interfaces';
@@ -44,6 +46,16 @@ export class OrderFulfillmentController {
   ): Promise<IDriverPickedUpOrderResponse> {
     return this.orderFulfillmentService.driverPickedUpOrder(
       driverPickedUpOrderDto,
+    );
+  }
+
+  @MessagePattern('driverCompleteOrder')
+  async driverCompleteOrder(
+    @Payload()
+    driverCompleteOrderDto: DriverCompleteOrderDto,
+  ): Promise<IDriverCompleteOrderResponse> {
+    return this.orderFulfillmentService.driverCompleteOrder(
+      driverCompleteOrderDto,
     );
   }
 }

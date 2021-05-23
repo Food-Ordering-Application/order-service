@@ -1,4 +1,9 @@
-import { DeliveryStatus, OrdStatus } from 'src/order/enums';
+import {
+  DeliveryStatus,
+  OrdStatus,
+  PaymentStatus,
+  PaymentType,
+} from 'src/order/enums';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,11 +11,13 @@ import { DELIVERY_SERVICE, NOTIFICATION_SERVICE } from 'src/constants';
 import { Delivery, Order, Payment } from 'src/order/entities';
 import { Repository } from 'typeorm';
 import {
+  DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
 import {
+  IDriverCompleteOrderResponse,
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
 } from './interfaces';
@@ -54,6 +61,10 @@ export class OrderFulfillmentService {
 
   async sendDriverPickUpOrderEvent(order: Order) {
     this.notificationServiceClient.emit('orderHasBeenPickedUpEvent', order);
+  }
+
+  async sendDriverCompleteOrderEvent(order: Order) {
+    this.notificationServiceClient.emit('orderHasBeenCompletedEvent', order);
   }
 
   async restaurantConfirmOrder(
@@ -175,5 +186,68 @@ export class OrderFulfillmentService {
       status: HttpStatus.OK,
       message: 'Confirm picked up order successfully',
     };
+  }
+
+  async driverCompleteOrder(
+    driverCompleteOrderDto: DriverCompleteOrderDto,
+  ): Promise<IDriverCompleteOrderResponse> {
+    const { orderId } = driverCompleteOrderDto;
+
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.payment', 'payment')
+      .where('order.id = :orderId', {
+        orderId: orderId,
+      })
+      .getOne();
+
+    if (!order) {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Order not found',
+      };
+    }
+
+    if (order.delivery?.status != DeliveryStatus.PICKED_UP) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message:
+          'Cannot confirm complete order. Delivery status not valid to complete order',
+      };
+    }
+
+    let paymentPromise = null;
+
+    // update payment
+    if (order.payment.type == PaymentType.COD) {
+      order.payment.amount = order.grandTotal;
+      order.payment.status = PaymentStatus.COMPLETED;
+      paymentPromise = this.paymentRepository.save(order.payment);
+    }
+
+    // update delivery
+    order.delivery.status = DeliveryStatus.COMPLETED;
+
+    // update order
+    order.status = OrdStatus.COMPLETED;
+
+    await Promise.all([
+      this.deliveryRepository.save(order.delivery),
+      paymentPromise,
+      this.orderRepository.save(order),
+      await this.rewardDriver(order),
+    ]);
+
+    this.sendDriverCompleteOrderEvent(order);
+    return {
+      status: HttpStatus.OK,
+      message: 'Confirm complete order successfully',
+    };
+  }
+
+  // TODO
+  async rewardDriver(order: Order) {
+    return;
   }
 }
