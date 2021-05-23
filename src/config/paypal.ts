@@ -4,7 +4,7 @@
  *
  * PayPal Node JS SDK dependency
  */
-import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
+import * as checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 /**
  *

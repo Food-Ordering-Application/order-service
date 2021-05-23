@@ -784,17 +784,19 @@ export class OrderService {
         case PaymentMethod.COD:
           break;
         case PaymentMethod.PAYPAL:
-          const exchangeRate: { VND_USD: number } = await axios.get(
+          const exchangeRate = await axios.get(
             'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
           );
-          const rate = exchangeRate.VND_USD | DEFAULT_EXCHANGE_RATE;
-          const subTotalUSD = order.subTotal * rate;
-          const grandTotalUSD = order.grandTotal * rate;
-          const shippingFeeUSD = order.delivery.shippingFee * rate;
-          const amountPlatformFee =
-            subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD;
+          const rate = exchangeRate.data.VND_USD || DEFAULT_EXCHANGE_RATE;
+          let subTotalUSD = 0;
           const items = order.orderItems.map((orderItem) => {
-            const orderItemPriceUSD = orderItem.subTotal * rate;
+            const orderItemPriceUSD = parseFloat(
+              (orderItem.subTotal * rate).toFixed(2),
+            );
+            console.log(orderItemPriceUSD * orderItem.quantity);
+            subTotalUSD += parseFloat(
+              (orderItemPriceUSD * orderItem.quantity).toFixed(2),
+            );
             return {
               name: orderItem.name,
               unit_amount: {
@@ -804,13 +806,32 @@ export class OrderService {
               quantity: orderItem.quantity,
             };
           });
+          console.log(subTotalUSD);
+          console.log(parseFloat(subTotalUSD.toFixed(2)));
+          subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
+          // const subTotalUSD = parseFloat((order.subTotal * rate).toFixed(2));
+          const shippingFeeUSD = parseFloat(
+            (order.delivery.shippingFee * rate).toFixed(2),
+          );
+          const grandTotalUSD = parseFloat(
+            (subTotalUSD + shippingFeeUSD).toFixed(2),
+          );
+          const amountPlatformFee = parseFloat(
+            (subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD).toFixed(2),
+          );
 
           console.log('SubTotalUSD', subTotalUSD);
           console.log('GrandTotalUSD', grandTotalUSD);
           console.log('ShippingFeeUSD', shippingFeeUSD);
+          console.log('amountPlatformFee', amountPlatformFee);
+          console.log('paypalMerchantId', paypalMerchantId);
 
           //TODO: Tạo paypal order
           const request = new paypal.orders.OrdersCreateRequest();
+          console.log('OK');
+          request.headers['PayPal-Partner-Attribution-Id'] =
+            process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
+          console.log(request);
           request.prefer('return=representation');
           request.requestBody({
             intent: 'CAPTURE',
@@ -819,6 +840,19 @@ export class OrderService {
                 amount: {
                   currency_code: 'USD',
                   value: grandTotalUSD.toString(),
+                  breakdown: {
+                    item_total: {
+                      currency_code: 'USD',
+                      value: subTotalUSD.toString(),
+                    },
+                    shipping: {
+                      currency_code: 'USD',
+                      value: shippingFeeUSD.toString(),
+                    },
+                  },
+                },
+                payee: {
+                  merchant_id: paypalMerchantId,
                 },
                 payment_instruction: {
                   disbursement_mode: 'INSTANT',
@@ -828,36 +862,24 @@ export class OrderService {
                         currency_code: 'USD',
                         value: amountPlatformFee.toString(),
                       },
-                      payee: {
-                        merchant_id: paypalMerchantId,
-                      },
                     },
                   ],
-                },
-                breakdown: {
-                  item_total: {
-                    currency_code: 'USD',
-                    value: subTotalUSD.toString(),
-                  },
-                  shipping: {
-                    currency_code: 'USD',
-                    value: shippingFeeUSD.toString(),
-                  },
                 },
                 items: items,
               },
             ],
           });
           const paypalOrder = await client().execute(request);
+          console.log('OK');
           payment.paypalOrderId = paypalOrder.result.id;
+          //TODO: Lưu lại paypalOrderId
+          await this.paymentRepository.save(payment);
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
             paypalOrderId: paypalOrder.result.id,
           };
       }
-      //TODO: Lưu lại paypalOrderId
-      this.paymentRepository.save(payment);
 
       return {
         status: HttpStatus.OK,
@@ -877,6 +899,8 @@ export class OrderService {
   ): Promise<IApprovePaypalOrder> {
     try {
       const { paypalOrderId, orderId, customerId } = approvePaypalOrderDto;
+      console.log('paypalOrderId', paypalOrderId);
+      console.log('orderId', orderId);
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
@@ -887,6 +911,7 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+      console.log('order', order);
 
       //TODO: Nếu là order salechannel
       if (order.delivery) {
@@ -898,9 +923,10 @@ export class OrderService {
           };
         }
       }
-      console.log('Checkoutnodejssdk', paypal);
       //TODO: Call PayPal to capture the order
       const request = new paypal.orders.OrdersCaptureRequest(paypalOrderId);
+      request.headers['PayPal-Partner-Attribution-Id'] =
+        process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
       request.requestBody({});
 
       const capture = await client().execute(request);

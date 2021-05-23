@@ -21,7 +21,7 @@ export class Payment {
   @Column({ enum: PaymentStatus })
   status: string;
 
-  @Column()
+  @Column({ nullable: true })
   captureId: string;
 
   @Column()
