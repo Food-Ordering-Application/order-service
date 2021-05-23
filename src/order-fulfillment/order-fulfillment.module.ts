@@ -59,5 +59,6 @@ import { OrderFulfillmentService } from './order-fulfillment.service';
   ],
   controllers: [OrderFulfillmentController],
   providers: [OrderFulfillmentService],
+  exports: [OrderFulfillmentService],
 })
 export class OrderFulfillmentModule {}

@@ -1,3 +1,4 @@
+import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -68,6 +69,7 @@ export class OrderService {
     private orderItemToppingRepository: Repository<OrderItemTopping>,
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+    private orderFulfillmentService: OrderFulfillmentService,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -778,6 +780,7 @@ export class OrderService {
 
       switch (paymentType) {
         case PaymentType.COD:
+          await this.placeOrder(order);
           break;
         case PaymentType.PAYPAL:
           const exchangeRate: { VND_USD: number } = await axios.get(
@@ -908,10 +911,9 @@ export class OrderService {
         capture.result.purchase_units[0].payments.captures[0].id;
       //TODO: Lưu lại captureId, update order status, payment status.
       order.payment.captureId = captureID;
-      order.status = OrdStatus.ORDERED;
       order.payment.status = PaymentStatus.COMPLETED;
       await Promise.all([
-        this.orderRepository.save(order),
+        this.placeOrder(order),
         this.paymentRepository.save(order.payment),
       ]);
 
@@ -940,5 +942,11 @@ export class OrderService {
         order: orderResult,
       },
     };
+  }
+
+  async placeOrder(order: Order) {
+    order.status = OrdStatus.ORDERED;
+    await this.orderRepository.save(order);
+    this.orderFulfillmentService.sendOrderEvent(order);
   }
 }
