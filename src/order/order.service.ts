@@ -29,7 +29,7 @@ import {
   OrdStatus,
   DeliveryStatus,
   GetRestaurantOrder,
-  PaymentType,
+  PaymentMethod,
   PaymentStatus,
 } from './enums';
 import {
@@ -743,7 +743,7 @@ export class OrderService {
     try {
       const {
         note,
-        paymentType,
+        paymentMethod,
         orderId,
         customerId,
         paypalMerchantId,
@@ -779,12 +779,12 @@ export class OrderService {
       payment.amount = calculateOrderGrandToTal(order);
       payment.order = order;
       payment.status = PaymentStatus.PENDING;
-      payment.type = paymentType;
+      payment.method = paymentMethod;
 
-      switch (paymentType) {
-        case PaymentType.COD:
+      switch (paymentMethod) {
+        case PaymentMethod.COD:
           break;
-        case PaymentType.PAYPAL:
+        case PaymentMethod.PAYPAL:
           const exchangeRate: { VND_USD: number } = await axios.get(
             'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
           );
