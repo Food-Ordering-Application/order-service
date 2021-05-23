@@ -899,7 +899,7 @@ export class OrderService {
           };
         }
       }
-
+      console.log('Checkoutnodejssdk', checkoutNodeJssdk);
       //TODO: Call PayPal to capture the order
       const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(
         paypalOrderId,
