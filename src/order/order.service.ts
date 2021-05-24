@@ -171,6 +171,7 @@ export class OrderService {
   ): Promise<ICreateOrderResponse> {
     try {
       const { customerId, restaurantId } = getOrderAssociatedWithCusAndResDto;
+      //TODO: Lấy ra order DRAFT của customer đối với nhà hàng cụ thể
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
@@ -183,6 +184,9 @@ export class OrderService {
             customerId: customerId,
           },
         )
+        .andWhere('order.status = :orderStatus', {
+          orderStatus: OrdStatus.DRAFT,
+        })
         .getOne();
       return {
         status: HttpStatus.OK,
