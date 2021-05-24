@@ -8,7 +8,11 @@ import {
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DELIVERY_SERVICE, NOTIFICATION_SERVICE } from 'src/constants';
+import {
+  DELIVERY_SERVICE,
+  NOTIFICATION_SERVICE,
+  USER_SERVICE,
+} from 'src/constants';
 import { Delivery, Invoice, Order, Payment } from 'src/order/entities';
 import { Repository } from 'typeorm';
 import {
@@ -26,18 +30,23 @@ import {
 @Injectable()
 export class OrderFulfillmentService {
   constructor(
+    // repositories
     @InjectRepository(Delivery)
     private deliveryRepository: Repository<Delivery>,
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+    @InjectRepository(Invoice)
+    private invoiceRepository: Repository<Invoice>,
+
+    // queues
     @Inject(NOTIFICATION_SERVICE)
     private notificationServiceClient: ClientProxy,
     @Inject(DELIVERY_SERVICE)
     private deliveryServiceClient: ClientProxy,
-    @InjectRepository(Invoice)
-    private invoiceRepository: Repository<Invoice>,
+    @Inject(USER_SERVICE)
+    private userServiceClient: ClientProxy,
   ) {}
 
   private readonly logger = new Logger('OrderFulfillmentService');
@@ -60,6 +69,7 @@ export class OrderFulfillmentService {
       'orderHasBeenAssignedToDriverEvent',
       order,
     );
+    this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', order);
   }
 
   async sendDriverPickUpOrderEvent(order: Order) {
@@ -68,6 +78,7 @@ export class OrderFulfillmentService {
 
   async sendDriverCompleteOrderEvent(order: Order) {
     this.notificationServiceClient.emit('orderHasBeenCompletedEvent', order);
+    this.userServiceClient.emit('orderHasBeenCompletedEvent', order);
   }
 
   async restaurantConfirmOrder(
@@ -127,6 +138,9 @@ export class OrderFulfillmentService {
     const order = await this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
+      .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
       .where('order.id = :orderId', {
         orderId: orderId,
       })
@@ -201,6 +215,7 @@ export class OrderFulfillmentService {
       .leftJoinAndSelect('order.delivery', 'delivery')
       .leftJoinAndSelect('order.invoice', 'invoice')
       .leftJoinAndSelect('invoice.payment', 'payment')
+      .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
       .where('order.id = :orderId', {
         orderId: orderId,
       })
@@ -243,7 +258,6 @@ export class OrderFulfillmentService {
       this.deliveryRepository.save(order.delivery),
       this.orderRepository.save(order),
       ...promises,
-      this.rewardDriver(order),
     ]);
 
     this.sendDriverCompleteOrderEvent(order);
@@ -251,10 +265,5 @@ export class OrderFulfillmentService {
       status: HttpStatus.OK,
       message: 'Confirm complete order successfully',
     };
-  }
-
-  // TODO
-  async rewardDriver(order: Order) {
-    return;
   }
 }

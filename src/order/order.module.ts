@@ -15,9 +15,11 @@ import {
   PaypalPayment,
   CashPayment,
 } from './entities';
+import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.module';
 
 @Module({
   imports: [
+    OrderFulfillmentModule,
     TypeOrmModule.forFeature([
       Order,
       OrderItemTopping,
