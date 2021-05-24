@@ -1,14 +1,15 @@
 import {
   DeliveryStatus,
+  InvoiceStatus,
   OrdStatus,
   PaymentStatus,
-  PaymentType,
+  PaymentMethod,
 } from 'src/order/enums';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DELIVERY_SERVICE, NOTIFICATION_SERVICE } from 'src/constants';
-import { Delivery, Order, Payment } from 'src/order/entities';
+import { Delivery, Invoice, Order, Payment } from 'src/order/entities';
 import { Repository } from 'typeorm';
 import {
   DriverCompleteOrderDto,
@@ -35,6 +36,8 @@ export class OrderFulfillmentService {
     private notificationServiceClient: ClientProxy,
     @Inject(DELIVERY_SERVICE)
     private deliveryServiceClient: ClientProxy,
+    @InjectRepository(Invoice)
+    private invoiceRepository: Repository<Invoice>,
   ) {}
 
   private readonly logger = new Logger('OrderFulfillmentService');
@@ -196,7 +199,8 @@ export class OrderFulfillmentService {
     const order = await this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.delivery', 'delivery')
-      .leftJoinAndSelect('order.payment', 'payment')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
       .where('order.id = :orderId', {
         orderId: orderId,
       })
@@ -217,13 +221,16 @@ export class OrderFulfillmentService {
       };
     }
 
-    let paymentPromise = null;
+    const promises: Promise<any>[] = [];
 
     // update payment
-    if (order.payment.type == PaymentType.COD) {
-      order.payment.amount = order.grandTotal;
-      order.payment.status = PaymentStatus.COMPLETED;
-      paymentPromise = this.paymentRepository.save(order.payment);
+    if (order.invoice.payment.method == PaymentMethod.COD) {
+      order.invoice.payment.status = PaymentStatus.COMPLETED;
+      order.invoice.status = InvoiceStatus.PAID;
+      promises.push(
+        this.paymentRepository.save(order.invoice.payment),
+        this.invoiceRepository.save(order.invoice),
+      );
     }
 
     // update delivery
@@ -234,9 +241,9 @@ export class OrderFulfillmentService {
 
     await Promise.all([
       this.deliveryRepository.save(order.delivery),
-      paymentPromise,
       this.orderRepository.save(order),
-      await this.rewardDriver(order),
+      ...promises,
+      this.rewardDriver(order),
     ]);
 
     this.sendDriverCompleteOrderEvent(order);
