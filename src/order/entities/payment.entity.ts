@@ -7,25 +7,21 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { PaymentType, PaymentStatus } from '../enums';
-import { Order } from './order.entity';
+import { PaymentMethod, PaymentStatus } from '../enums';
+import { CashPayment } from './cash-payment.entity';
+import { Invoice } from './invoice.entity';
+import { PaypalPayment } from './paypal-payment.entity';
 
 @Entity()
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ enum: PaymentType })
-  type: string;
+  @Column({ enum: PaymentMethod })
+  method: string;
 
   @Column({ enum: PaymentStatus })
   status: string;
-
-  @Column()
-  captureId: string;
-
-  @Column()
-  paypalOrderId: string;
 
   @Column()
   amount: number;
@@ -37,7 +33,12 @@ export class Payment {
   updatedAt: Date;
 
   //? Relations
-  @OneToOne(() => Order, (order) => order.payment) // specify inverse side as a second parameter
+  @OneToOne(() => Invoice, (invoice) => invoice.payment)
   @JoinColumn()
-  order: Order;
+  invoice: Invoice;
+
+  @OneToOne(() => PaypalPayment, (paypalPayment) => paypalPayment.payment)
+  paypalPayment: PaypalPayment;
+  @OneToOne(() => CashPayment, (cashPayment) => cashPayment.payment)
+  cashPayment: CashPayment;
 }

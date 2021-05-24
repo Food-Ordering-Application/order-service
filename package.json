@@ -50,7 +50,8 @@
     "rimraf": "^3.0.2",
     "rxjs": "^6.6.6",
     "typeorm": "^0.2.32",
-    "typeorm-seeding": "^1.6.1"
+    "typeorm-seeding": "^1.6.1",
+    "uniqid": "^5.3.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^7.5.6",

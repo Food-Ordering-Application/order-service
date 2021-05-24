@@ -1,6 +1,6 @@
 export class ConfirmOrderCheckoutDto {
   note: string;
-  paymentType: string;
+  paymentMethod: string;
   orderId: string;
   customerId: string;
   paypalMerchantId: string;

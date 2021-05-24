@@ -1,8 +1,10 @@
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Inject, Logger } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NOTIFICATION_SERVICE } from 'src/constants';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -18,18 +20,22 @@ import {
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import {
+  CashPayment,
   Delivery,
+  Invoice,
   Order,
   OrderItem,
   OrderItemTopping,
   Payment,
+  PaypalPayment,
 } from './entities';
 import {
   OrdStatus,
   DeliveryStatus,
   GetRestaurantOrder,
-  PaymentType,
+  PaymentMethod,
   PaymentStatus,
+  InvoiceStatus,
 } from './enums';
 import {
   IApprovePaypalOrder,
@@ -37,7 +43,6 @@ import {
   ICreateOrderResponse,
   IOrdersResponse,
   ISaveOrderResponse,
-  ISimpleResponse,
 } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
@@ -47,10 +52,10 @@ import {
   findOrderItemIndex,
   calculateShippingFee,
 } from './helpers/order-logic.helper';
-import paypal from '@paypal/checkout-server-sdk';
+import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
-import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
+import * as uniqid from 'uniqid';
 
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
@@ -59,6 +64,7 @@ export class OrderService {
   private readonly logger = new Logger('OrderService');
 
   constructor(
+    @Inject(NOTIFICATION_SERVICE) private notiServiceClient: ClientProxy,
     @InjectRepository(Delivery)
     private deliveryRepository: Repository<Delivery>,
     @InjectRepository(Order)
@@ -70,6 +76,12 @@ export class OrderService {
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
     private orderFulfillmentService: OrderFulfillmentService,
+    @InjectRepository(PaypalPayment)
+    private paypalPaymentRepository: Repository<PaypalPayment>,
+    @InjectRepository(CashPayment)
+    private cashPaymentRepository: Repository<CashPayment>,
+    @InjectRepository(Invoice)
+    private invoiceRepository: Repository<Invoice>,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -137,7 +149,9 @@ export class OrderService {
         order.cashierId = cashierId;
         order.grandTotal = order.subTotal;
       }
-      await this.orderRepository.save(order);
+      const createdOrder = await this.orderRepository.save(order);
+      console.log('Need to emit event message order to notification.');
+      this.notiServiceClient.emit({ event: 'order_updated' }, createdOrder);
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
@@ -159,6 +173,7 @@ export class OrderService {
   ): Promise<ICreateOrderResponse> {
     try {
       const { customerId, restaurantId } = getOrderAssociatedWithCusAndResDto;
+      //TODO: Lấy ra order DRAFT của customer đối với nhà hàng cụ thể
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
@@ -171,6 +186,9 @@ export class OrderService {
             customerId: customerId,
           },
         )
+        .andWhere('order.status = :orderStatus', {
+          orderStatus: OrdStatus.DRAFT,
+        })
         .getOne();
       return {
         status: HttpStatus.OK,
@@ -740,7 +758,7 @@ export class OrderService {
     try {
       const {
         note,
-        paymentType,
+        paymentMethod,
         orderId,
         customerId,
         paypalMerchantId,
@@ -752,6 +770,9 @@ export class OrderService {
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
@@ -766,34 +787,54 @@ export class OrderService {
           };
         }
       }
+      //TODO: Nếu đã tạo paypalOrderId rồi
+      if (paymentMethod === PaymentMethod.PAYPAL) {
+        if (order.invoice) {
+          return {
+            status: HttpStatus.OK,
+            message: 'Confirm order checkout successfully',
+            paypalOrderId: order.invoice.payment.paypalPayment.paypalOrderId,
+          };
+        }
+      }
       //TODO: Thêm note cho order nếu có
       if (note) {
         order.note = note;
-        this.orderRepository.save(order);
       }
-      //TODO: Tạo payment entity với phương thức thanh toán
+      //TODO: Tạo invoice, payment entity với phương thức thanh toán
+      const invoice = new Invoice();
+      invoice.order = order;
+      invoice.status = InvoiceStatus.UNPAID;
+      invoice.invoiceNumber = uniqid('invoice-');
+      await Promise.all([
+        this.invoiceRepository.save(invoice),
+        this.orderRepository.save(order),
+      ]);
+
       const payment = new Payment();
       payment.amount = calculateOrderGrandToTal(order);
-      payment.order = order;
+      payment.invoice = invoice;
       payment.status = PaymentStatus.PENDING;
-      payment.type = paymentType;
+      payment.method = paymentMethod;
+      await this.paymentRepository.save(payment);
 
-      switch (paymentType) {
-        case PaymentType.COD:
+      switch (paymentMethod) {
+        case PaymentMethod.COD:
           await this.placeOrder(order);
           break;
-        case PaymentType.PAYPAL:
-          const exchangeRate: { VND_USD: number } = await axios.get(
+        case PaymentMethod.PAYPAL:
+          const exchangeRate = await axios.get(
             'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
           );
-          const rate = exchangeRate.VND_USD | DEFAULT_EXCHANGE_RATE;
-          const subTotalUSD = order.subTotal * rate;
-          const grandTotalUSD = order.grandTotal * rate;
-          const shippingFeeUSD = order.delivery.shippingFee * rate;
-          const amountPlatformFee =
-            subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD;
+          const rate = exchangeRate.data.VND_USD || DEFAULT_EXCHANGE_RATE;
+          let subTotalUSD = 0;
           const items = order.orderItems.map((orderItem) => {
-            const orderItemPriceUSD = orderItem.subTotal * rate;
+            const orderItemPriceUSD = parseFloat(
+              (orderItem.subTotal * rate).toFixed(2),
+            );
+            subTotalUSD += parseFloat(
+              (orderItemPriceUSD * orderItem.quantity).toFixed(2),
+            );
             return {
               name: orderItem.name,
               unit_amount: {
@@ -803,13 +844,27 @@ export class OrderService {
               quantity: orderItem.quantity,
             };
           });
+          subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
+          const shippingFeeUSD = parseFloat(
+            (order.delivery.shippingFee * rate).toFixed(2),
+          );
+          const grandTotalUSD = parseFloat(
+            (subTotalUSD + shippingFeeUSD).toFixed(2),
+          );
+          const amountPlatformFee = parseFloat(
+            (subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD).toFixed(2),
+          );
 
           console.log('SubTotalUSD', subTotalUSD);
           console.log('GrandTotalUSD', grandTotalUSD);
           console.log('ShippingFeeUSD', shippingFeeUSD);
+          console.log('amountPlatformFee', amountPlatformFee);
+          console.log('paypalMerchantId', paypalMerchantId);
 
           //TODO: Tạo paypal order
           const request = new paypal.orders.OrdersCreateRequest();
+          request.headers['PayPal-Partner-Attribution-Id'] =
+            process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
           request.prefer('return=representation');
           request.requestBody({
             intent: 'CAPTURE',
@@ -818,6 +873,19 @@ export class OrderService {
                 amount: {
                   currency_code: 'USD',
                   value: grandTotalUSD.toString(),
+                  breakdown: {
+                    item_total: {
+                      currency_code: 'USD',
+                      value: subTotalUSD.toString(),
+                    },
+                    shipping: {
+                      currency_code: 'USD',
+                      value: shippingFeeUSD.toString(),
+                    },
+                  },
+                },
+                payee: {
+                  merchant_id: paypalMerchantId,
                 },
                 payment_instruction: {
                   disbursement_mode: 'INSTANT',
@@ -828,35 +896,29 @@ export class OrderService {
                         value: amountPlatformFee.toString(),
                       },
                       payee: {
-                        merchant_id: paypalMerchantId,
+                        merchant_id: 'LU9XXKX9PSTRW',
                       },
                     },
                   ],
-                },
-                breakdown: {
-                  item_total: {
-                    currency_code: 'USD',
-                    value: subTotalUSD.toString(),
-                  },
-                  shipping: {
-                    currency_code: 'USD',
-                    value: shippingFeeUSD.toString(),
-                  },
                 },
                 items: items,
               },
             ],
           });
           const paypalOrder = await client().execute(request);
-          payment.paypalOrderId = paypalOrder.result.id;
+          console.log('OK');
+          //TODO: Tạo đối tượng paypal payment và lưu lại
+          const paypalPayment = new PaypalPayment();
+          paypalPayment.paypalOrderId = paypalOrder.result.id;
+          paypalPayment.payment = payment;
+          await this.paypalPaymentRepository.save(paypalPayment);
+
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
             paypalOrderId: paypalOrder.result.id,
           };
       }
-      //TODO: Lưu lại paypalOrderId
-      this.paymentRepository.save(payment);
 
       return {
         status: HttpStatus.OK,
@@ -881,7 +943,9 @@ export class OrderService {
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
-        .leftJoinAndSelect('order.payment', 'payment')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
@@ -897,24 +961,27 @@ export class OrderService {
           };
         }
       }
-
       //TODO: Call PayPal to capture the order
-      const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(
-        paypalOrderId,
-      );
+      const request = new paypal.orders.OrdersCaptureRequest(paypalOrderId);
+      request.headers['PayPal-Partner-Attribution-Id'] =
+        process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
       request.requestBody({});
 
       const capture = await client().execute(request);
-
       //TODO: Save the capture ID to your database.
       const captureID =
         capture.result.purchase_units[0].payments.captures[0].id;
       //TODO: Lưu lại captureId, update order status, payment status.
-      order.payment.captureId = captureID;
-      order.payment.status = PaymentStatus.COMPLETED;
+      order.invoice.payment.paypalPayment.captureId = captureID;
+      //TODO: Đổi trạng thái payment sang đã thành công
+      order.invoice.payment.status = PaymentStatus.COMPLETED;
+      //TODO: Đổi trạng thái invoice sang đã thanh toán
+      order.invoice.status = InvoiceStatus.PAID;
       await Promise.all([
         this.placeOrder(order),
-        this.paymentRepository.save(order.payment),
+        this.paypalPaymentRepository.save(order.invoice.payment.paypalPayment),
+        this.paymentRepository.save(order.invoice.payment),
+        this.invoiceRepository.save(order.invoice),
       ]);
 
       return {

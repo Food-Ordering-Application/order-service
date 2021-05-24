@@ -5,7 +5,7 @@ import {
   OrderItemTopping,
 } from '../../order/entities';
 import { Factory, Seeder } from 'typeorm-seeding';
-import { PaymentType, OrdStatus, DeliveryStatus } from '../../order/enums';
+import { OrdStatus, DeliveryStatus } from '../../order/enums';
 import * as _ from 'lodash';
 
 export default class CreateFakeData implements Seeder {
