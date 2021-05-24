@@ -19,11 +19,14 @@ import {
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import {
+  CashPayment,
   Delivery,
+  Invoice,
   Order,
   OrderItem,
   OrderItemTopping,
   Payment,
+  PaypalPayment,
 } from './entities';
 import {
   OrdStatus,
@@ -31,6 +34,7 @@ import {
   GetRestaurantOrder,
   PaymentMethod,
   PaymentStatus,
+  InvoiceStatus,
 } from './enums';
 import {
   IApprovePaypalOrder,
@@ -38,7 +42,6 @@ import {
   ICreateOrderResponse,
   IOrdersResponse,
   ISaveOrderResponse,
-  ISimpleResponse,
 } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
 import {
@@ -51,6 +54,7 @@ import {
 import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
+import * as uniqid from 'uniqid';
 
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
@@ -70,6 +74,12 @@ export class OrderService {
     private orderItemToppingRepository: Repository<OrderItemTopping>,
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+    @InjectRepository(PaypalPayment)
+    private paypalPaymentRepository: Repository<PaypalPayment>,
+    @InjectRepository(CashPayment)
+    private cashPaymentRepository: Repository<CashPayment>,
+    @InjectRepository(Invoice)
+    private invoiceRepository: Repository<Invoice>,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -754,6 +764,9 @@ export class OrderService {
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
@@ -768,17 +781,36 @@ export class OrderService {
           };
         }
       }
+      //TODO: Nếu đã tạo paypalOrderId rồi
+      if (paymentMethod === PaymentMethod.PAYPAL) {
+        if (order.invoice) {
+          return {
+            status: HttpStatus.OK,
+            message: 'Confirm order checkout successfully',
+            paypalOrderId: order.invoice.payment.paypalPayment.paypalOrderId,
+          };
+        }
+      }
       //TODO: Thêm note cho order nếu có
       if (note) {
         order.note = note;
-        this.orderRepository.save(order);
       }
-      //TODO: Tạo payment entity với phương thức thanh toán
+      //TODO: Tạo invoice, payment entity với phương thức thanh toán
+      const invoice = new Invoice();
+      invoice.order = order;
+      invoice.status = InvoiceStatus.UNPAID;
+      invoice.invoiceNumber = uniqid('invoice-');
+      await Promise.all([
+        this.invoiceRepository.save(invoice),
+        this.orderRepository.save(order),
+      ]);
+
       const payment = new Payment();
       payment.amount = calculateOrderGrandToTal(order);
-      payment.order = order;
+      payment.invoice = invoice;
       payment.status = PaymentStatus.PENDING;
       payment.method = paymentMethod;
+      await this.paymentRepository.save(payment);
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
@@ -793,7 +825,6 @@ export class OrderService {
             const orderItemPriceUSD = parseFloat(
               (orderItem.subTotal * rate).toFixed(2),
             );
-            console.log(orderItemPriceUSD * orderItem.quantity);
             subTotalUSD += parseFloat(
               (orderItemPriceUSD * orderItem.quantity).toFixed(2),
             );
@@ -806,10 +837,7 @@ export class OrderService {
               quantity: orderItem.quantity,
             };
           });
-          console.log(subTotalUSD);
-          console.log(parseFloat(subTotalUSD.toFixed(2)));
           subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
-          // const subTotalUSD = parseFloat((order.subTotal * rate).toFixed(2));
           const shippingFeeUSD = parseFloat(
             (order.delivery.shippingFee * rate).toFixed(2),
           );
@@ -828,10 +856,8 @@ export class OrderService {
 
           //TODO: Tạo paypal order
           const request = new paypal.orders.OrdersCreateRequest();
-          console.log('OK');
           request.headers['PayPal-Partner-Attribution-Id'] =
             process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
-          console.log(request);
           request.prefer('return=representation');
           request.requestBody({
             intent: 'CAPTURE',
@@ -862,6 +888,9 @@ export class OrderService {
                         currency_code: 'USD',
                         value: amountPlatformFee.toString(),
                       },
+                      payee: {
+                        merchant_id: 'LU9XXKX9PSTRW',
+                      },
                     },
                   ],
                 },
@@ -871,9 +900,12 @@ export class OrderService {
           });
           const paypalOrder = await client().execute(request);
           console.log('OK');
-          payment.paypalOrderId = paypalOrder.result.id;
-          //TODO: Lưu lại paypalOrderId
-          await this.paymentRepository.save(payment);
+          //TODO: Tạo đối tượng paypal payment và lưu lại
+          const paypalPayment = new PaypalPayment();
+          paypalPayment.paypalOrderId = paypalOrder.result.id;
+          paypalPayment.payment = payment;
+          await this.paypalPaymentRepository.save(paypalPayment);
+
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
@@ -899,19 +931,18 @@ export class OrderService {
   ): Promise<IApprovePaypalOrder> {
     try {
       const { paypalOrderId, orderId, customerId } = approvePaypalOrderDto;
-      console.log('paypalOrderId', paypalOrderId);
-      console.log('orderId', orderId);
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
-        .leftJoinAndSelect('order.payment', 'payment')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
         .getOne();
-      console.log('order', order);
 
       //TODO: Nếu là order salechannel
       if (order.delivery) {
@@ -930,17 +961,22 @@ export class OrderService {
       request.requestBody({});
 
       const capture = await client().execute(request);
-
       //TODO: Save the capture ID to your database.
       const captureID =
         capture.result.purchase_units[0].payments.captures[0].id;
       //TODO: Lưu lại captureId, update order status, payment status.
-      order.payment.captureId = captureID;
+      order.invoice.payment.paypalPayment.captureId = captureID;
+      //TODO: Đổi trạng thái order sang ORDERED
       order.status = OrdStatus.ORDERED;
-      order.payment.status = PaymentStatus.COMPLETED;
+      //TODO: Đổi trạng thái payment sang đã thành công
+      order.invoice.payment.status = PaymentStatus.COMPLETED;
+      //TODO: Đổi trạng thái invoice sang đã thanh toán
+      order.invoice.status = InvoiceStatus.PAID;
       await Promise.all([
         this.orderRepository.save(order),
-        this.paymentRepository.save(order.payment),
+        this.paypalPaymentRepository.save(order.invoice.payment.paypalPayment),
+        this.paymentRepository.save(order.invoice.payment),
+        this.invoiceRepository.save(order.invoice),
       ]);
 
       return {

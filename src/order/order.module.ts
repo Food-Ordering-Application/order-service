@@ -11,6 +11,9 @@ import {
   OrderItem,
   Delivery,
   Payment,
+  Invoice,
+  PaypalPayment,
+  CashPayment,
 } from './entities';
 
 @Module({
@@ -21,6 +24,9 @@ import {
       OrderItem,
       Delivery,
       Payment,
+      Invoice,
+      PaypalPayment,
+      CashPayment,
     ]),
     ClientsModule.registerAsync([
       {

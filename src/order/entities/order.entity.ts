@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { OrdStatus } from '../enums';
 import { Delivery, OrderItem, Payment } from './index';
+import { Invoice } from './invoice.entity';
 
 @Entity()
 export class Order {
@@ -45,6 +46,7 @@ export class Order {
   @Column({ enum: OrdStatus })
   status: string;
 
+  //? Relations
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {
     cascade: ['update', 'insert'],
   })
@@ -53,6 +55,6 @@ export class Order {
   @OneToOne(() => Delivery, (delivery) => delivery.order) // specify inverse side as a second parameter
   delivery: Delivery;
 
-  @OneToOne(() => Payment, (payment) => payment.order)
-  payment: Payment;
+  @OneToOne(() => Invoice, (invoice) => invoice.order)
+  invoice: Invoice;
 }
