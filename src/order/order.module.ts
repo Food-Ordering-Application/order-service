@@ -15,9 +15,11 @@ import {
   PaypalPayment,
   CashPayment,
 } from './entities';
+import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.module';
 
 @Module({
   imports: [
+    OrderFulfillmentModule,
     TypeOrmModule.forFeature([
       Order,
       OrderItemTopping,
@@ -27,23 +29,6 @@ import {
       Invoice,
       PaypalPayment,
       CashPayment,
-    ]),
-    ClientsModule.registerAsync([
-      {
-        name: NOTIFICATION_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('NOTIFICATION_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
     ]),
   ],
   controllers: [OrderController],

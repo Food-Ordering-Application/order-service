@@ -1,3 +1,4 @@
+import { OrderFulfillmentModule } from './order-fulfillment/order-fulfillment.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -19,6 +20,7 @@ import { OrderModule } from './order/order.module';
     }),
     DatabaseModule,
     OrderModule,
+    OrderFulfillmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
