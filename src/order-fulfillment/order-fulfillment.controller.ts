@@ -29,7 +29,7 @@ export class OrderFulfillmentController {
     );
   }
 
-  @EventPattern('updateDriverForOrder')
+  @EventPattern('updateDriverForOrderEvent')
   async handleUpdateDriverForOrder(
     @Payload()
     updateDriverForOrderDto: UpdateDriverForOrderEventPayload,
