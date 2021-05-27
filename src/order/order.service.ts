@@ -789,9 +789,10 @@ export class OrderService {
       invoice.order = order;
       invoice.status = InvoiceStatus.UNPAID;
       invoice.invoiceNumber = uniqid('invoice-');
+      order.invoice = invoice;
       await Promise.all([
-        this.invoiceRepository.save(invoice),
         this.orderRepository.save(order),
+        this.invoiceRepository.save(invoice),
       ]);
 
       const payment = new Payment();
