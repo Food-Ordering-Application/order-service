@@ -53,6 +53,7 @@ export class OrderFulfillmentService {
 
   async sendPlaceOrderEvent(order: Order) {
     this.notificationServiceClient.emit('orderPlacedEvent', order);
+    this.logger.log(order.id, 'noti: orderPlacedEvent');
   }
 
   async sendConfirmOrderEvent(order: Order) {
@@ -62,6 +63,7 @@ export class OrderFulfillmentService {
     );
 
     this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
+    this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
   }
 
   async sendDriverAcceptOrderEvent(order: Order) {
@@ -70,15 +72,18 @@ export class OrderFulfillmentService {
       order,
     );
     this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', order);
+    this.logger.log(order, 'noti: orderHasBeenAssignedToDriverEvent');
   }
 
   async sendDriverPickUpOrderEvent(order: Order) {
     this.notificationServiceClient.emit('orderHasBeenPickedUpEvent', order);
+    this.logger.log(order.id, 'noti: orderHasBeenPickedUpEvent');
   }
 
   async sendDriverCompleteOrderEvent(order: Order) {
     this.notificationServiceClient.emit('orderHasBeenCompletedEvent', order);
     this.userServiceClient.emit('orderHasBeenCompletedEvent', order);
+    this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
   async restaurantConfirmOrder(
@@ -148,21 +153,21 @@ export class OrderFulfillmentService {
 
     if (!order) {
       this.logger.error(`Order: ${orderId} not found`);
-    }
-
-    if (!order) {
-      this.logger.error(`Order: ${orderId} not found`);
+      return;
     }
 
     if (order.delivery?.status != DeliveryStatus.ASSIGNING_DRIVER) {
       this.logger.error(
         `Order: ${orderId} delivery status is not ${DeliveryStatus.ASSIGNING_DRIVER}`,
       );
+      return;
     }
 
     order.delivery.driverId = driverId;
     order.delivery.status = DeliveryStatus.ON_GOING;
     await this.deliveryRepository.save(order.delivery);
+
+    console.dir(order, { depth: 3 });
 
     this.sendDriverAcceptOrderEvent(order);
   }
@@ -273,6 +278,8 @@ export class OrderFulfillmentService {
       this.orderRepository.save(order),
       ...promises,
     ]);
+
+    console.dir(order, { depth: 3 });
 
     this.sendDriverCompleteOrderEvent(order);
     return {
