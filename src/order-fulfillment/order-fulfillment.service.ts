@@ -170,7 +170,7 @@ export class OrderFulfillmentService {
   async driverPickedUpOrder(
     driverPickedUpOrderDto: DriverPickedUpOrderDto,
   ): Promise<IDriverPickedUpOrderResponse> {
-    const { orderId } = driverPickedUpOrderDto;
+    const { orderId, driverId } = driverPickedUpOrderDto;
 
     const order = await this.orderRepository
       .createQueryBuilder('order')
@@ -184,6 +184,13 @@ export class OrderFulfillmentService {
       return {
         status: HttpStatus.NOT_FOUND,
         message: 'Order not found',
+      };
+    }
+
+    if (order.delivery.driverId != driverId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'You cannot pick up another order',
       };
     }
 
@@ -208,7 +215,7 @@ export class OrderFulfillmentService {
   async driverCompleteOrder(
     driverCompleteOrderDto: DriverCompleteOrderDto,
   ): Promise<IDriverCompleteOrderResponse> {
-    const { orderId } = driverCompleteOrderDto;
+    const { orderId, driverId } = driverCompleteOrderDto;
 
     const order = await this.orderRepository
       .createQueryBuilder('order')
@@ -225,6 +232,13 @@ export class OrderFulfillmentService {
       return {
         status: HttpStatus.NOT_FOUND,
         message: 'Order not found',
+      };
+    }
+
+    if (order.delivery.driverId != driverId) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'You cannot pick up another order',
       };
     }
 
@@ -250,7 +264,7 @@ export class OrderFulfillmentService {
 
     // update delivery
     order.delivery.status = DeliveryStatus.COMPLETED;
-
+    order.delivery.deliveredAt = new Date();
     // update order
     order.status = OrdStatus.COMPLETED;
 
