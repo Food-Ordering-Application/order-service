@@ -26,7 +26,7 @@ import {
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
 } from './interfaces';
-
+import { allowed, filteredOrder } from '../shared/filteredOrder';
 @Injectable()
 export class OrderFulfillmentService {
   constructor(
@@ -52,7 +52,10 @@ export class OrderFulfillmentService {
   private readonly logger = new Logger('OrderFulfillmentService');
 
   async sendPlaceOrderEvent(order: Order) {
-    this.notificationServiceClient.emit('orderPlacedEvent', order);
+    this.notificationServiceClient.emit(
+      'orderPlacedEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderPlacedEvent');
   }
 

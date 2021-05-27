@@ -1,6 +1,12 @@
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
-import { HttpStatus, Injectable, Inject, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  Inject,
+  Logger,
+  forwardRef,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -56,7 +62,6 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
 import * as uniqid from 'uniqid';
-
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 @Injectable()
@@ -98,12 +103,14 @@ export class OrderService {
     } = createOrderDto;
     try {
       // Tạo và lưu orderItem
-      const { addOrderItems, totalPriceToppings } =
-        await createAndStoreOrderItem(
-          orderItem,
-          this.orderItemToppingRepository,
-          this.orderItemRepository,
-        );
+      const {
+        addOrderItems,
+        totalPriceToppings,
+      } = await createAndStoreOrderItem(
+        orderItem,
+        this.orderItemToppingRepository,
+        this.orderItemRepository,
+      );
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -233,12 +240,14 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const { addOrderItems, totalPriceToppings } =
-          await createAndStoreOrderItem(
-            sendItem,
-            this.orderItemToppingRepository,
-            this.orderItemRepository,
-          );
+        const {
+          addOrderItems,
+          totalPriceToppings,
+        } = await createAndStoreOrderItem(
+          sendItem,
+          this.orderItemToppingRepository,
+          this.orderItemRepository,
+        );
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -461,8 +470,13 @@ export class OrderService {
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
     try {
-      const { restaurantId, query, pageNumber, start, end } =
-        getAllRestaurantOrderDto;
+      const {
+        restaurantId,
+        query,
+        pageNumber,
+        start,
+        end,
+      } = getAllRestaurantOrderDto;
       // Tìm lại order với orderId
       let orders;
       if (query === GetRestaurantOrder.ALL) {
@@ -744,8 +758,13 @@ export class OrderService {
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
     try {
-      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
-        confirmOrderCheckoutDto;
+      const {
+        note,
+        paymentMethod,
+        orderId,
+        customerId,
+        paypalMerchantId,
+      } = confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
