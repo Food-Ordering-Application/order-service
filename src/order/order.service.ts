@@ -64,7 +64,6 @@ export class OrderService {
   private readonly logger = new Logger('OrderService');
 
   constructor(
-    @Inject(NOTIFICATION_SERVICE) private notiServiceClient: ClientProxy,
     @InjectRepository(Delivery)
     private deliveryRepository: Repository<Delivery>,
     @InjectRepository(Order)
@@ -99,14 +98,12 @@ export class OrderService {
     } = createOrderDto;
     try {
       // Tạo và lưu orderItem
-      const {
-        addOrderItems,
-        totalPriceToppings,
-      } = await createAndStoreOrderItem(
-        orderItem,
-        this.orderItemToppingRepository,
-        this.orderItemRepository,
-      );
+      const { addOrderItems, totalPriceToppings } =
+        await createAndStoreOrderItem(
+          orderItem,
+          this.orderItemToppingRepository,
+          this.orderItemRepository,
+        );
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -150,8 +147,6 @@ export class OrderService {
         order.grandTotal = order.subTotal;
       }
       const createdOrder = await this.orderRepository.save(order);
-      console.log('Need to emit event message order to notification.');
-      this.notiServiceClient.emit({ event: 'order_updated' }, createdOrder);
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
@@ -238,14 +233,12 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const {
-          addOrderItems,
-          totalPriceToppings,
-        } = await createAndStoreOrderItem(
-          sendItem,
-          this.orderItemToppingRepository,
-          this.orderItemRepository,
-        );
+        const { addOrderItems, totalPriceToppings } =
+          await createAndStoreOrderItem(
+            sendItem,
+            this.orderItemToppingRepository,
+            this.orderItemRepository,
+          );
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -468,13 +461,8 @@ export class OrderService {
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
     try {
-      const {
-        restaurantId,
-        query,
-        pageNumber,
-        start,
-        end,
-      } = getAllRestaurantOrderDto;
+      const { restaurantId, query, pageNumber, start, end } =
+        getAllRestaurantOrderDto;
       // Tìm lại order với orderId
       let orders;
       if (query === GetRestaurantOrder.ALL) {
@@ -756,13 +744,8 @@ export class OrderService {
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
     try {
-      const {
-        note,
-        paymentMethod,
-        orderId,
-        customerId,
-        paypalMerchantId,
-      } = confirmOrderCheckoutDto;
+      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
+        confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository

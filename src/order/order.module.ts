@@ -30,23 +30,6 @@ import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.
       PaypalPayment,
       CashPayment,
     ]),
-    ClientsModule.registerAsync([
-      {
-        name: NOTIFICATION_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('NOTIFICATION_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-    ]),
   ],
   controllers: [OrderController],
   providers: [OrderService],
