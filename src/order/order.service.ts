@@ -757,6 +757,7 @@ export class OrderService {
   async confirmOrderCheckout(
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
+    console.log('push');
     try {
       const {
         note,
