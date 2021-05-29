@@ -104,9 +104,9 @@ export class OrderFulfillmentService {
       .where('order.id = :orderId', {
         orderId: orderId,
       })
-      .andWhere('order.restaurantId = :restaurantId', {
-        restaurantId: restaurantId,
-      })
+      // .andWhere('order.restaurantId = :restaurantId', {
+      //   restaurantId: restaurantId,
+      // })
       .getOne();
 
     if (!order) {
