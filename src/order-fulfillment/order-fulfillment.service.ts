@@ -1,3 +1,4 @@
+import { PaypalPayment } from './../order/entities/paypal-payment.entity';
 import { DeliveryIssue } from './../order/enums/delivery-issue.enum';
 import { OrderItem } from './../order/entities/order-item.entity';
 import {
@@ -7,6 +8,7 @@ import {
   PaymentStatus,
   PaymentMethod,
   State,
+  PayPalRefundStatus,
 } from 'src/order/enums';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
@@ -31,6 +33,7 @@ import {
   IRestaurantConfirmOrderResponse,
   IRestaurantVoidOrderResponse,
 } from './interfaces';
+import { PayPalClient } from './helpers/paypal-refund-helper';
 
 @Injectable()
 export class OrderFulfillmentService {
@@ -270,17 +273,40 @@ export class OrderFulfillmentService {
       };
     }
 
-    // const { paypalPayment } = payment;
     if (payment.method === PaymentMethod.PAYPAL) {
-      invoice.status = InvoiceStatus.REFUND;
-      payment.status = PaymentStatus.REFUND;
-
       // TODO: refund PayPal
+      const { paypalPayment } = payment;
+      const response = await PayPalClient.refund(paypalPayment.captureId);
+      if (!response) {
+        return {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Error during refund process',
+        };
+      }
+
+      const { refundId, status: refundStatus } = response;
+
+      invoice.status = InvoiceStatus.REFUND;
+
+      payment.status =
+        refundStatus === PayPalRefundStatus.COMPLETED
+          ? PaymentStatus.REFUND
+          : PaymentStatus.PENDING_REFUND;
+
+      paypalPayment.refundId = refundId;
+
       const updateInvoicePromise = () =>
         queryRunner.manager.save(Invoice, invoice);
       const updatePaymentPromise = () =>
         queryRunner.manager.save(Payment, payment);
-      promises.push(updateInvoicePromise, updatePaymentPromise);
+      const updatePayPalPaymentPromise = () =>
+        queryRunner.manager.save(PaypalPayment, paypalPayment);
+
+      promises.push(
+        updateInvoicePromise,
+        updatePaymentPromise,
+        updatePayPalPaymentPromise,
+      );
     }
 
     try {
