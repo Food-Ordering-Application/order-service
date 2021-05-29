@@ -1,3 +1,4 @@
+import { DeliveryIssue } from './../enums/delivery-issue.enum';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -51,6 +52,12 @@ export class Delivery {
 
   @Column({ enum: DeliveryStatus })
   status: string;
+
+  @Column({ default: null })
+  issueNote: string;
+
+  @Column({ enum: DeliveryIssue, default: null })
+  issueType: DeliveryIssue;
 
   @CreateDateColumn()
   createdAt: Date;
