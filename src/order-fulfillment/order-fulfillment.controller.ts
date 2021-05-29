@@ -1,9 +1,11 @@
+import { IRestaurantVoidOrderResponse } from './interfaces/restaurant-void-order-response.interface';
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import {
   DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
+  RestaurantVoidOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
 import {
@@ -56,6 +58,16 @@ export class OrderFulfillmentController {
   ): Promise<IDriverCompleteOrderResponse> {
     return this.orderFulfillmentService.driverCompleteOrder(
       driverCompleteOrderDto,
+    );
+  }
+
+  @MessagePattern('restaurantVoidOrder')
+  async restaurantVoidOrder(
+    @Payload()
+    restaurantVoidOrderDto: RestaurantVoidOrderDto,
+  ): Promise<IRestaurantVoidOrderResponse> {
+    return this.orderFulfillmentService.restaurantVoidOrder(
+      restaurantVoidOrderDto,
     );
   }
 }

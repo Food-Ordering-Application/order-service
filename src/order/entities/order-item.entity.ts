@@ -18,6 +18,8 @@ export class OrderItem {
 
   @ManyToOne(() => Order, (order) => order.orderItems)
   order: Order;
+  @Column({ nullable: true })
+  orderId: string;
 
   @Column()
   price: number;
