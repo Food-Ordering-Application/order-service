@@ -490,18 +490,25 @@ export class OrderService {
       pageNumber,
       start,
       end,
-      orderStatus = OrdStatus.ORDERED,
+      orderStatus = null,
     } = getAllRestaurantOrderDto;
 
     let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.orderItems', 'ordItems')
       .where('order.restaurantId = :restaurantId', {
         restaurantId: restaurantId,
-      })
-      .andWhere('order.status = :orderStatus', {
-        orderStatus: orderStatus,
       });
+
+    if (orderStatus) {
+      orderQueryBuilder = orderQueryBuilder.andWhere(
+        'order.status = :orderStatus',
+        {
+          orderStatus: orderStatus,
+        },
+      );
+    }
 
     if (start && end) {
       const startDate = new Date(start);
@@ -516,20 +523,17 @@ export class OrderService {
     }
 
     if (query === GetRestaurantOrder.POS) {
-      orderQueryBuilder = orderQueryBuilder.andWhere(
-        'order.deliveryId IS NULL',
-      );
+      orderQueryBuilder = orderQueryBuilder.andWhere('delivery.id IS NULL');
     }
 
     if (query === GetRestaurantOrder.SALE) {
-      orderQueryBuilder = orderQueryBuilder.andWhere(
-        'order.deliveryId IS NOT NULL',
-      );
+      orderQueryBuilder = orderQueryBuilder.andWhere('delivery.id IS NOT NULL');
     }
 
     const orders = await orderQueryBuilder
       .skip((pageNumber - 1) * 25)
       .take(25)
+      .select(['order', 'ordItems.id', 'ordItems.quantity', 'delivery'])
       .getMany();
 
     return {

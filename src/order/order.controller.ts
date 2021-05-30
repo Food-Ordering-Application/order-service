@@ -82,7 +82,7 @@ export class OrderController {
     return this.orderService.removeOrderItem(removeOrderItemDto);
   }
 
-  @MessagePattern('getAllRestaurantOrder')
+  @MessagePattern('getOrdersOfRestaurant')
   async getAllRestaurantOrder(
     @Payload()
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
