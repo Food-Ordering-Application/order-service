@@ -15,11 +15,11 @@ import {
   GetOrderDetailDto,
   ConfirmOrderCheckoutDto,
   ApprovePaypalOrderDto,
+  GetListOrderOfDriverDto,
 } from './dto';
 import {
   ICreateOrderResponse,
   IOrdersResponse,
-  ISimpleResponse,
   ISaveOrderResponse,
   IConfirmOrderCheckoutResponse,
   IApprovePaypalOrder,
@@ -138,5 +138,14 @@ export class OrderController {
     savePosOrderDto: SavePosOrderDto,
   ): Promise<ISaveOrderResponse> {
     return this.orderService.savePosOrder(savePosOrderDto);
+  }
+
+  //! Get one order ON_GOING, PICKED_UP of driver
+  @MessagePattern('getListOrderOfDriver')
+  async getListOrderOfDriver(
+    @Payload()
+    getListOrderOfDriverDto: GetListOrderOfDriverDto,
+  ): Promise<IOrdersResponse> {
+    return this.orderService.getListOrderOfDriver(getListOrderOfDriverDto);
   }
 }
