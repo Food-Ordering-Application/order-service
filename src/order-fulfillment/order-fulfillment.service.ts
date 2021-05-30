@@ -35,6 +35,7 @@ import {
 } from './interfaces';
 import { PayPalClient } from './helpers/paypal-refund-helper';
 
+import { allowed, filteredOrder } from '../shared/filteredOrder';
 @Injectable()
 export class OrderFulfillmentService {
   constructor(
@@ -64,7 +65,10 @@ export class OrderFulfillmentService {
   private readonly logger = new Logger('OrderFulfillmentService');
 
   async sendPlaceOrderEvent(order: Order) {
-    this.notificationServiceClient.emit('orderPlacedEvent', order);
+    this.notificationServiceClient.emit(
+      'orderPlacedEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderPlacedEvent');
   }
 
@@ -118,9 +122,9 @@ export class OrderFulfillmentService {
       .where('order.id = :orderId', {
         orderId: orderId,
       })
-      .andWhere('order.restaurantId = :restaurantId', {
-        restaurantId: restaurantId,
-      })
+      // .andWhere('order.restaurantId = :restaurantId', {
+      //   restaurantId: restaurantId,
+      // })
       .getOne();
 
     if (!order) {

@@ -1,15 +1,14 @@
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
-import { HttpStatus, Injectable, Inject, Logger } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { NOTIFICATION_SERVICE } from 'src/constants';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
   ConfirmOrderCheckoutDto,
   GetAllRestaurantOrderDto,
+  GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
   IncreaseOrderItemQuantityDto,
@@ -36,11 +35,13 @@ import {
   PaymentMethod,
   PaymentStatus,
   InvoiceStatus,
+  EDriverOrderType,
 } from './enums';
 import {
   IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
+  IOrder,
   IOrdersResponse,
   ISaveOrderResponse,
 } from './interfaces';
@@ -56,7 +57,6 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
 import * as uniqid from 'uniqid';
-
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 @Injectable()
@@ -105,7 +105,6 @@ export class OrderService {
           this.orderItemToppingRepository,
           this.orderItemRepository,
         );
-
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -814,8 +813,8 @@ export class OrderService {
   async confirmOrderCheckout(
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
+    console.log('push');
     try {
-      // TODO: make this a transaction
       const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
         confirmOrderCheckoutDto;
 
@@ -1086,5 +1085,85 @@ export class OrderService {
     order.status = OrdStatus.ORDERED;
     await this.orderRepository.save(order);
     this.orderFulfillmentService.sendPlaceOrderEvent(order);
+  }
+
+  async getListOrderOfDriver(
+    getListOrderOfDriverDto: GetListOrderOfDriverDto,
+  ): Promise<IOrdersResponse> {
+    try {
+      const { callerId, driverId, query } = getListOrderOfDriverDto;
+      //TODO: Nếu người gọi api k phải là driver đó
+      if (callerId.toString() !== driverId.toString()) {
+        return {
+          status: HttpStatus.FORBIDDEN,
+          message: 'Forbidden',
+          orders: null,
+        };
+      }
+
+      const orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .where('delivery.driverId = :driverId', {
+          driverId: driverId,
+        });
+      let orders: IOrder[];
+      switch (query) {
+        case EDriverOrderType.ACTIVE:
+          const activeStatus = [];
+          activeStatus.push(DeliveryStatus.ON_GOING);
+          activeStatus.push(DeliveryStatus.PICKED_UP);
+          orders = await orderQueryBuilder
+            .andWhere('delivery.status IN (:...deliveryStatus)', {
+              deliveryStatus: activeStatus,
+            })
+            .getMany();
+          break;
+        case EDriverOrderType.COMPLETED:
+          orders = await orderQueryBuilder
+            .andWhere('delivery.status = :deliveryStatus', {
+              deliveryStatus: DeliveryStatus.COMPLETED,
+            })
+            .getMany();
+          break;
+      }
+      console.log('FindOrder', orders);
+
+      const mappedOrders = orders.map((order) => {
+        const mappedOrderItems = order.orderItems.map((orderItem) => {
+          return {
+            id: orderItem.id,
+            quantity: orderItem.quantity,
+          };
+        });
+
+        return {
+          ...order,
+          orderItems: mappedOrderItems,
+        };
+      });
+
+      if (!orders || orders.length === 0) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'List order not found for that driver',
+          orders: null,
+        };
+      }
+
+      return {
+        status: HttpStatus.OK,
+        message: 'List order of driver found',
+        orders: mappedOrders,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        orders: null,
+      };
+    }
   }
 }
