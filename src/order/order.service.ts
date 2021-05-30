@@ -223,6 +223,14 @@ export class OrderService {
         })
         .getOne();
 
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
       const foundOrderItem = findOrderItem(sendItem, order.orderItems);
       const foundOrderItemIndex = findOrderItemIndex(
         sendItem,
@@ -414,6 +422,15 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
       const orderItemToDelete = order.orderItems.find(
         (ordItem) => ordItem.id === orderItemId,
       );
@@ -608,6 +625,14 @@ export class OrderService {
         })
         .getOne();
 
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
       return {
         status: HttpStatus.OK,
         message: 'Order fetched successfully',
@@ -639,6 +664,15 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
       // Tìm ra orderitem đó và sửa lại quantity
       const orderItem = order.orderItems.find(
         (item) => item.id === orderItemId,
@@ -724,7 +758,16 @@ export class OrderService {
         })
         .getOne();
 
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
       this.handleCustomerAddressChange(order, { address: address, geo: geom });
+
       await Promise.all([
         this.deliveryRepository.save(order.delivery),
         this.orderRepository.save(order),
@@ -789,6 +832,14 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+        };
+      }
+
       //TODO: Nếu là order salechannel
       if (order.delivery) {
         //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
@@ -963,6 +1014,13 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+        };
+      }
 
       //TODO: Nếu là order salechannel
       if (order.delivery) {
