@@ -97,6 +97,7 @@ export class OrderService {
       customerAddress,
     } = createOrderDto;
     try {
+      // TODO: make this a transaction
       // Tạo và lưu orderItem
       const { addOrderItems, totalPriceToppings } =
         await createAndStoreOrderItem(
@@ -104,6 +105,7 @@ export class OrderService {
           this.orderItemToppingRepository,
           this.orderItemRepository,
         );
+
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -111,50 +113,54 @@ export class OrderService {
       order.orderItems = addOrderItems;
       order.subTotal =
         (orderItem.price + totalPriceToppings) * orderItem.quantity;
-      order.grandTotal = order.subTotal;
-      await this.orderRepository.save(order);
-      // Nếu là order bên salechannel thì có customerId
-      let newOrder;
-      if (customerId) {
-        // Tạo và lưu delivery
-        const delivery = new Delivery();
-        delivery.customerId = customerId;
-        delivery.status = DeliveryStatus.DRAFT;
-        delivery.restaurantGeom = restaurantGeom;
-        delivery.restaurantAddress = restaurantAddress;
 
-        /* Nếu customer có địa chỉ */
-        if (customerGeom) {
-          const { distance, shippingFee } = await calculateShippingFee(
-            this.deliveryRepository,
-            restaurantGeom,
-            customerGeom,
-          );
-          delivery.customerGeom = customerGeom;
-          delivery.customerAddress = customerAddress;
-          delivery.shippingFee = shippingFee;
-          delivery.distance = Math.floor(distance);
-          order.grandTotal = order.subTotal + delivery.shippingFee;
-        }
-
-        delivery.order = order;
-        await this.deliveryRepository.save(delivery);
-        delete delivery.order;
-        newOrder = { ...order, delivery: delivery };
-      } else {
+      if (!customerId) {
         // Nếu là order bên POS thì có cashierId
         order.cashierId = cashierId;
-        order.grandTotal = order.subTotal;
+        order.grandTotal = calculateOrderGrandToTal(order);
+        await this.orderRepository.save(order);
+        return {
+          status: HttpStatus.CREATED,
+          message: 'Order created successfully',
+          order: order,
+        };
       }
-      const createdOrder = await this.orderRepository.save(order);
+
+      // Nếu là order bên salechannel thì có customerId
+      // Tạo và lưu delivery
+      const delivery = new Delivery();
+      order.delivery = delivery;
+      delivery.order = order;
+      delivery.customerId = customerId;
+      delivery.status = DeliveryStatus.DRAFT;
+      delivery.restaurantGeom = restaurantGeom;
+      delivery.restaurantAddress = restaurantAddress;
+
+      /* Nếu customer có địa chỉ */
+      if (customerGeom) {
+        this.handleCustomerAddressChange(order, {
+          address: customerAddress,
+          geo: customerGeom,
+        });
+      }
+
+      await Promise.all([
+        this.deliveryRepository.save(order.delivery),
+        this.orderRepository.save(order),
+      ]);
+
+      delete delivery.order;
+      const newOrder = { ...order, delivery: delivery };
+
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
-        order: customerId ? newOrder : order,
+        order: newOrder,
       };
     } catch (error) {
       this.logger.error(error);
       console.log('Error in createOrder');
+
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
@@ -204,6 +210,7 @@ export class OrderService {
     addNewItemToOrderDto: AddNewItemToOrderDto,
   ): Promise<ICreateOrderResponse> {
     try {
+      // TODO: make this a transaction
       const { sendItem, orderId } = addNewItemToOrderDto;
       // Tìm ra order với orderId
       const order = await this.orderRepository
@@ -395,6 +402,7 @@ export class OrderService {
     removeOrderItemDto: RemoveOrderItemDto,
   ): Promise<ICreateOrderResponse> {
     try {
+      // TODO: make this a transaction
       const { orderItemId, orderId } = removeOrderItemDto;
       // Tìm lại order với orderId
       const order = await this.orderRepository
@@ -620,6 +628,7 @@ export class OrderService {
   ): Promise<ICreateOrderResponse> {
     try {
       let flag = 0;
+      // TODO: make this a transaction
       const { orderId, orderItemId, quantity } = updateOrderItemQuantityDto;
       const order = await this.orderRepository
         .createQueryBuilder('order')
@@ -714,17 +723,13 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
-      //TODO: Update lại thông tin customerAddress, customerGeom và tính toán lại shippingFee của delivery
-      order.delivery.customerAddress = address;
-      order.delivery.customerGeom = geom;
-      const { distance, shippingFee } = await calculateShippingFee(
-        this.deliveryRepository,
-        order.delivery.restaurantGeom,
-        geom,
-      );
-      order.delivery.shippingFee = shippingFee;
-      order.delivery.distance = Math.floor(distance);
-      this.deliveryRepository.save(order.delivery);
+
+      this.handleCustomerAddressChange(order, { address: address, geo: geom });
+      await Promise.all([
+        this.deliveryRepository.save(order.delivery),
+        this.orderRepository.save(order),
+      ]);
+
       return {
         status: HttpStatus.OK,
         message: 'Update delivery address successfully',
@@ -732,6 +737,7 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
@@ -740,10 +746,33 @@ export class OrderService {
     }
   }
 
+  handleCustomerAddressChange(
+    order: Order,
+    newCustomerLocation: {
+      address: string;
+      geo: { type: string; coordinates: number[] };
+    },
+  ) {
+    // calculate new shipping fee
+    const { distance, shippingFee } = calculateShippingFee(
+      order.delivery.restaurantGeom,
+      newCustomerLocation.geo,
+    );
+    // update new location
+    order.delivery.customerAddress = newCustomerLocation.address;
+    order.delivery.customerGeom = newCustomerLocation.geo;
+
+    // update delivery fee, distance and order grandTotal
+    order.delivery.shippingFee = shippingFee;
+    order.delivery.distance = Math.floor(distance);
+    order.grandTotal = calculateOrderGrandToTal(order);
+  }
+
   async confirmOrderCheckout(
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
     try {
+      // TODO: make this a transaction
       const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
         confirmOrderCheckoutDto;
 
