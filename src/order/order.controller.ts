@@ -82,12 +82,12 @@ export class OrderController {
     return this.orderService.removeOrderItem(removeOrderItemDto);
   }
 
-  @MessagePattern('getAllRestaurantOrder')
+  @MessagePattern('getOrdersOfRestaurant')
   async getAllRestaurantOrder(
     @Payload()
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
-    return this.orderService.getAllRestaurantOrder(getAllRestaurantOrderDto);
+    return this.orderService.getOrdersOfRestaurant(getAllRestaurantOrderDto);
   }
 
   @MessagePattern('getOrderDetail')
