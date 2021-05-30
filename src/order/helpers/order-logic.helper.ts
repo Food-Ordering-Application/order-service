@@ -10,6 +10,7 @@ import {
 } from '../dto';
 import { OrderItemTopping, OrderItem, Order, Delivery } from '../entities';
 import { State } from '../enums';
+import { Coordinate, Geo } from './geo.helper';
 
 export const createAndStoreOrderItem = async (
   orderItem: OrderItemDto,
@@ -102,17 +103,18 @@ export const checkEqualTopping = (
 };
 
 export const calculateOrderSubTotal = (orderItems: OrderItem[]): number => {
-  let total = 0;
-  for (const orderItem of orderItems) {
-    let totalToppingPrice = 0;
-    for (let i = 0; i < orderItem.orderItemToppings.length; i++) {
-      totalToppingPrice +=
-        orderItem.orderItemToppings[i].price *
-        orderItem.orderItemToppings[i].quantity;
-    }
-    total += (orderItem.price + totalToppingPrice) * orderItem.quantity;
-  }
-  return total;
+  const subTotal = orderItems.reduce((currentSubTotal, orderItem) => {
+    const { orderItemToppings, price, quantity } = orderItem;
+    const totalToppingPrice = orderItemToppings.reduce(
+      (currentToppingPrice, orderItemTopping) => {
+        const { price, quantity } = orderItemTopping;
+        return currentToppingPrice + price * quantity;
+      },
+      0,
+    );
+    return currentSubTotal + (price + totalToppingPrice) * quantity;
+  }, 0);
+  return subTotal;
 };
 
 export const calculateOrderGrandToTal = (order: Order): number => {
@@ -170,30 +172,33 @@ interface ICalculateShippingFeeResponse {
 }
 
 //* Calculate shippingFee
-export const calculateShippingFee = async (
-  deliveryRepository: Repository<Delivery>,
+export const calculateShippingFee = (
   restaurantGeom,
   customerGeom,
-): Promise<ICalculateShippingFeeResponse> => {
+): ICalculateShippingFeeResponse => {
   let shippingFee;
-  const { st_distance } = await deliveryRepository
-    .createQueryBuilder('delivery')
-    .select(
-      `ST_Distance(
-        ST_Transform(ST_SetSRID(ST_MakePoint(${restaurantGeom.coordinates[1]}, ${restaurantGeom.coordinates[0]}), 4326), 3857),
-        ST_Transform(ST_SetSRID(ST_MakePoint(${customerGeom.coordinates[1]}, ${customerGeom.coordinates[0]}), 4326), 3857)
-        )`,
-    )
-    .getRawOne();
+
+  const restaurantGeo: Coordinate = {
+    latitude: restaurantGeom.coordinates[0],
+    longitude: restaurantGeom.coordinates[1],
+  };
+
+  const customerGeo: Coordinate = {
+    latitude: customerGeom.coordinates[0],
+    longitude: customerGeom.coordinates[1],
+  };
+
+  const distance = Geo.getDistanceFrom2Geo(restaurantGeo, customerGeo);
+
   /* Nếu khoảng cách <3km thì phí ship là 15000đồng, mỗi 1km 5000 đồng*/
-  if (st_distance <= FIRST_SHIPPING_KILOMETER)
+  if (distance <= FIRST_SHIPPING_KILOMETER)
     shippingFee = FIRST_THREE_KILOMETER_FEE;
   else {
     const extraKilometer = Math.floor(
-      (st_distance - FIRST_SHIPPING_KILOMETER) / 1000,
+      (distance - FIRST_SHIPPING_KILOMETER) / 1000,
     );
     shippingFee =
       FIRST_THREE_KILOMETER_FEE + (extraKilometer + 1) * EXTRA_KILOMETER_FEE;
   }
-  return { shippingFee, distance: st_distance };
+  return { shippingFee, distance };
 };

@@ -1,31 +1,40 @@
+import { PaypalPayment } from './../order/entities/paypal-payment.entity';
+import { DeliveryIssue } from './../order/enums/delivery-issue.enum';
+import { OrderItem } from './../order/entities/order-item.entity';
 import {
   DeliveryStatus,
   InvoiceStatus,
   OrdStatus,
   PaymentStatus,
   PaymentMethod,
+  State,
+  PayPalRefundStatus,
 } from 'src/order/enums';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import {
   DELIVERY_SERVICE,
   NOTIFICATION_SERVICE,
   USER_SERVICE,
 } from 'src/constants';
 import { Delivery, Invoice, Order, Payment } from 'src/order/entities';
-import { Repository } from 'typeorm';
+import { Connection, In, Repository, QueryRunner } from 'typeorm';
 import {
   DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
+  RestaurantVoidOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
 import {
   IDriverCompleteOrderResponse,
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
+  IRestaurantVoidOrderResponse,
 } from './interfaces';
+import { PayPalClient } from './helpers/paypal-refund-helper';
+
 import { allowed, filteredOrder } from '../shared/filteredOrder';
 @Injectable()
 export class OrderFulfillmentService {
@@ -39,6 +48,10 @@ export class OrderFulfillmentService {
     private paymentRepository: Repository<Payment>,
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
+    @InjectRepository(OrderItem)
+    private orderItemRepository: Repository<OrderItem>,
+    @InjectConnection()
+    private connection: Connection,
 
     // queues
     @Inject(NOTIFICATION_SERVICE)
@@ -67,6 +80,11 @@ export class OrderFulfillmentService {
 
     this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
     this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
+  }
+
+  async sendCancelOrderEvent(order: Order) {
+    this.notificationServiceClient.emit('orderHasBeenCancelledEvent', order);
+    this.logger.log(order.id, 'noti: orderHasBeenCancelledEvent');
   }
 
   async sendDriverAcceptOrderEvent(order: Order) {
@@ -136,6 +154,196 @@ export class OrderFulfillmentService {
       status: HttpStatus.OK,
       message: 'Confirm order successfully',
     };
+  }
+
+  async restaurantVoidOrder(
+    restaurantVoidOrderDto: RestaurantVoidOrderDto,
+  ): Promise<IRestaurantVoidOrderResponse> {
+    const {
+      orderId,
+      cashierId = null,
+      restaurantId = '',
+      orderItemIds = [],
+      cashierNote = null,
+    } = restaurantVoidOrderDto;
+
+    const promises: (() => Promise<any>)[] = [];
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
+      .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
+      .where('order.id = :orderId', {
+        orderId: orderId,
+      })
+      .andWhere('order.restaurantId = :restaurantId', {
+        restaurantId: restaurantId,
+      })
+      .getOne();
+
+    if (!order) {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Order not found in current authenticated restaurant',
+      };
+    }
+
+    if (order.delivery?.status != DeliveryStatus.DRAFT) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Cannot void order. Delivery status not valid to void order',
+      };
+    }
+
+    const PAYMENT_METHODS_SUPPORT_CANCEL_ORDER: string[] = [
+      PaymentMethod.PAYPAL,
+      PaymentMethod.COD,
+    ];
+
+    if (
+      PAYMENT_METHODS_SUPPORT_CANCEL_ORDER.length &&
+      !PAYMENT_METHODS_SUPPORT_CANCEL_ORDER.includes(
+        order.invoice.payment.method,
+      )
+    ) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: `Cannot void order. ${order.invoice.payment.method} payment have not supported to cancel order`,
+      };
+    }
+
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    // update out of stock order items
+    if (orderItemIds.length) {
+      const orderItems = await this.orderItemRepository.find({
+        id: In(orderItemIds),
+        orderId: orderId,
+      });
+
+      if (orderItems.length !== orderItemIds.length) {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'One of order item ids is not valid. Please check again',
+        };
+      }
+
+      const patchedOrderItems = orderItems.map((orderItem) => ({
+        ...orderItem,
+        state: State.OUT_OF_STOCK,
+      }));
+
+      // save order items
+      const updateOrderItemsPromise = () =>
+        queryRunner.manager.save(OrderItem, patchedOrderItems);
+      promises.push(updateOrderItemsPromise);
+    }
+
+    // update order
+    order.cashierId = cashierId;
+    order.status = OrdStatus.CANCELLED;
+
+    // -- save order
+    const updateOrderPromise = () => queryRunner.manager.save(Order, order);
+    promises.push(updateOrderPromise);
+
+    // update delivery
+    const delivery = order.delivery;
+    if (!delivery) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Error when update delivery information',
+      };
+    }
+    delivery.status = DeliveryStatus.CANCELLED;
+    delivery.issueType = DeliveryIssue.ITEM_IS_OUT_OF_STOCK;
+    delivery.issueNote = cashierNote;
+
+    // -- save delivery
+    const updateDeliveryPromise = () =>
+      queryRunner.manager.save(Delivery, order.delivery);
+    promises.push(updateDeliveryPromise);
+
+    // update invoice
+    // -- save delivery
+    const invoice = order.invoice;
+    const payment = invoice.payment;
+    if (!invoice || !payment) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Error when update invoice information',
+      };
+    }
+    if (payment.method === PaymentMethod.COD) {
+      payment.status = PaymentStatus.CANCELLED;
+      invoice.status = InvoiceStatus.CANCELLED;
+      const updateInvoicePromise = () =>
+        queryRunner.manager.save(Invoice, invoice);
+      const updatePaymentPromise = () =>
+        queryRunner.manager.save(Payment, payment);
+      promises.push(updateInvoicePromise, updatePaymentPromise);
+    }
+
+    if (payment.method === PaymentMethod.PAYPAL) {
+      // refund PayPal
+      const { paypalPayment } = payment;
+      const response = await PayPalClient.refund(paypalPayment.captureId);
+      if (!response) {
+        return {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Error during refund process',
+        };
+      }
+
+      const { refundId, status: refundStatus } = response;
+
+      invoice.status = InvoiceStatus.REFUNDED;
+
+      payment.status =
+        refundStatus === PayPalRefundStatus.COMPLETED
+          ? PaymentStatus.REFUNDED
+          : PaymentStatus.PENDING_REFUNDED;
+
+      paypalPayment.refundId = refundId;
+
+      const updateInvoicePromise = () =>
+        queryRunner.manager.save(Invoice, invoice);
+      const updatePaymentPromise = () =>
+        queryRunner.manager.save(Payment, payment);
+      const updatePayPalPaymentPromise = () =>
+        queryRunner.manager.save(PaypalPayment, paypalPayment);
+
+      promises.push(
+        updateInvoicePromise,
+        updatePaymentPromise,
+        updatePayPalPaymentPromise,
+      );
+    }
+
+    try {
+      await Promise.all(promises.map((callback) => callback()));
+      await queryRunner.commitTransaction();
+
+      // notify user
+      this.sendCancelOrderEvent(order);
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Void order successfully',
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      };
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async handleUpdateDriverForOrder(

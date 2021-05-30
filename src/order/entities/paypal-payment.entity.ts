@@ -17,6 +17,9 @@ export class PaypalPayment {
   @Column({ nullable: true })
   captureId: string;
 
+  @Column({ nullable: true })
+  refundId: string;
+
   @Column()
   paypalOrderId: string;
 
