@@ -194,6 +194,7 @@ export class OrderFulfillmentService {
 
     const PAYMENT_METHODS_SUPPORT_CANCEL_ORDER: string[] = [
       PaymentMethod.PAYPAL,
+      PaymentMethod.COD,
     ];
 
     if (
@@ -272,9 +273,18 @@ export class OrderFulfillmentService {
         message: 'Error when update invoice information',
       };
     }
+    if (payment.method === PaymentMethod.COD) {
+      payment.status = PaymentStatus.CANCELLED;
+      invoice.status = InvoiceStatus.CANCELLED;
+      const updateInvoicePromise = () =>
+        queryRunner.manager.save(Invoice, invoice);
+      const updatePaymentPromise = () =>
+        queryRunner.manager.save(Payment, payment);
+      promises.push(updateInvoicePromise, updatePaymentPromise);
+    }
 
     if (payment.method === PaymentMethod.PAYPAL) {
-      // TODO: refund PayPal
+      // refund PayPal
       const { paypalPayment } = payment;
       const response = await PayPalClient.refund(paypalPayment.captureId);
       if (!response) {
@@ -286,12 +296,12 @@ export class OrderFulfillmentService {
 
       const { refundId, status: refundStatus } = response;
 
-      invoice.status = InvoiceStatus.REFUND;
+      invoice.status = InvoiceStatus.REFUNDED;
 
       payment.status =
         refundStatus === PayPalRefundStatus.COMPLETED
-          ? PaymentStatus.REFUND
-          : PaymentStatus.PENDING_REFUND;
+          ? PaymentStatus.REFUNDED
+          : PaymentStatus.PENDING_REFUNDED;
 
       paypalPayment.refundId = refundId;
 
