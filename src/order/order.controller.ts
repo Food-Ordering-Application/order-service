@@ -87,7 +87,7 @@ export class OrderController {
     @Payload()
     getAllRestaurantOrderDto: GetAllRestaurantOrderDto,
   ): Promise<IOrdersResponse> {
-    return this.orderService.getAllRestaurantOrder(getAllRestaurantOrderDto);
+    return this.orderService.getOrdersOfRestaurant(getAllRestaurantOrderDto);
   }
 
   @MessagePattern('getOrderDetail')
