@@ -2,11 +2,19 @@ import { OrderItem } from './index';
 
 export class CreateOrderDto {
   orderItem: OrderItem;
-  restaurantId: string;
-  customerId?: string;
+  customer?: {
+    customerId?: string;
+    customerAddress: string;
+    customerGeom?: { type: string; coordinates: number[] };
+    customerName: string;
+    customerPhoneNumber: string;
+  };
+  restaurant: {
+    restaurantId: string;
+    restaurantGeom?: { type: string; coordinates: number[] };
+    restaurantAddress: string;
+    restaurantName: string;
+    restaurantPhoneNumber: string;
+  };
   cashierId?: string;
-  restaurantGeom?: { type: string; coordinates: number[] };
-  customerGeom?: { type: string; coordinates: number[] };
-  restaurantAddress: string;
-  customerAddress: string;
 }

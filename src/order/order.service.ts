@@ -86,16 +86,21 @@ export class OrderService {
   async createOrderAndFirstOrderItem(
     createOrderDto: CreateOrderDto,
   ): Promise<ICreateOrderResponse> {
+    const { orderItem, restaurant, customer, cashierId } = createOrderDto;
     const {
-      orderItem,
       restaurantId,
-      customerId,
-      cashierId,
       restaurantGeom,
-      customerGeom,
       restaurantAddress,
-      customerAddress,
-    } = createOrderDto;
+      restaurantName = null,
+      restaurantPhoneNumber = null,
+    } = restaurant;
+    const {
+      customerId = null,
+      customerGeom = null,
+      customerAddress = null,
+      customerName = null,
+      customerPhoneNumber = null,
+    } = customer || {};
     try {
       // TODO: make this a transaction
       // Tạo và lưu orderItem
@@ -130,10 +135,18 @@ export class OrderService {
       const delivery = new Delivery();
       order.delivery = delivery;
       delivery.order = order;
-      delivery.customerId = customerId;
       delivery.status = DeliveryStatus.DRAFT;
+
+      // add customer information
+      delivery.customerId = customerId;
+      delivery.customerName = customerName;
+      delivery.customerPhoneNumber = customerPhoneNumber;
+
+      // add restaurant information
       delivery.restaurantGeom = restaurantGeom;
       delivery.restaurantAddress = restaurantAddress;
+      delivery.restaurantName = restaurantName;
+      delivery.restaurantPhoneNumber = restaurantPhoneNumber;
 
       /* Nếu customer có địa chỉ */
       if (customerGeom) {
@@ -1064,7 +1077,7 @@ export class OrderService {
             .getMany();
           break;
       }
-      console.log('FindOrder', orders);
+      // console.log('FindOrder', orders);
 
       const mappedOrders = orders.map((order) => {
         const mappedOrderItems = order.orderItems.map((orderItem) => {
