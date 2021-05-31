@@ -143,6 +143,7 @@ export class OrderFulfillmentService {
     }
 
     order.cashierId = cashierId;
+    order.status = OrdStatus.CONFIRMED;
     order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
     await Promise.all([
       this.orderRepository.save(order),
