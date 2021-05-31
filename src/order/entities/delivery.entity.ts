@@ -23,6 +23,12 @@ export class Delivery {
   driverId: string;
 
   @Column({ nullable: true })
+  customerName: string;
+
+  @Column({ nullable: true })
+  customerPhoneNumber: string;
+
+  @Column({ nullable: true })
   customerAddress: string;
 
   @Column({
@@ -32,6 +38,12 @@ export class Delivery {
     nullable: true,
   })
   customerGeom: { type: string; coordinates: number[] };
+
+  @Column({ nullable: true })
+  restaurantName: string;
+
+  @Column({ nullable: true })
+  restaurantPhoneNumber: string;
 
   @Column({ nullable: true })
   restaurantAddress: string;
