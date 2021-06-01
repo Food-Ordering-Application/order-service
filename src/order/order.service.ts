@@ -11,6 +11,7 @@ import {
   GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
+  GetOrderHistoryOfCustomerDto,
   GetOrdersOfCustomerDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
@@ -1190,5 +1191,44 @@ export class OrderService {
       message: 'Fetch orders of customer successfully',
       orders: orders,
     };
+  }
+
+  async getOnGoingOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      [OrdStatus.ORDERED, OrdStatus.CONFIRMED],
+      false,
+    );
+  }
+
+  async getOrderHistoryOfCustomer(
+    getOrderHistoryOfCustomerDto: GetOrderHistoryOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    const {
+      filter = [OrdStatus.ORDERED, OrdStatus.CONFIRMED],
+      ...getOrdersOfCustomerDto
+    } = getOrderHistoryOfCustomerDto;
+
+    const filteredOrderStatus = [OrdStatus.ORDERED, OrdStatus.CONFIRMED].filter(
+      (value) => filter.includes(value),
+    );
+
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      filteredOrderStatus,
+      false,
+    );
+  }
+
+  async getDraftOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      [OrdStatus.DRAFT],
+      true,
+    );
   }
 }
