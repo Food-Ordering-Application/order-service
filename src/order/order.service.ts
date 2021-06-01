@@ -42,6 +42,7 @@ import {
   IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
+  ICustomerOrdersResponse,
   IOrder,
   IOrdersResponse,
   ISaveOrderResponse,
@@ -1133,5 +1134,61 @@ export class OrderService {
         orders: null,
       };
     }
+  }
+
+  async getOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+    orderStatuses: OrdStatus[] = [],
+    isDraft = false,
+  ): Promise<ICustomerOrdersResponse> {
+    const { customerId, from = null, to = null } = getOrdersOfCustomerDto;
+
+    let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('order.payment', 'payment')
+      .where('delivery.customerId = :customerId', {
+        customerId: customerId,
+      });
+
+    if (orderStatuses.length) {
+      orderQueryBuilder = orderQueryBuilder.andWhere(
+        'order.status IN (:...orderStatus)',
+        {
+          orderStatuses: orderStatuses,
+        },
+      );
+    }
+
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      orderQueryBuilder = orderQueryBuilder
+        .andWhere('order.createdAt >= :startDate', {
+          startDate: fromDate.toISOString(),
+        })
+        .andWhere('order.createdAt <= :endDate', {
+          endDate: toDate.toISOString(),
+        });
+    }
+
+    const orders = await orderQueryBuilder
+      .select([
+        'order',
+        'delivery',
+        'invoice.status',
+        'payment.amount',
+        'payment.method',
+        'payment.status',
+      ])
+      .orderBy(isDraft ? 'order.updatedAt' : 'delivery.updatedAt', 'DESC')
+      .getMany();
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Fetch orders of customer successfully',
+      orders: orders,
+    };
   }
 }
