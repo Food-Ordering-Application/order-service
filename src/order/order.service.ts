@@ -568,12 +568,24 @@ export class OrderService {
 
       const order = await this.orderRepository
         .createQueryBuilder('order')
-        .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('order.payment', 'payment')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
+        .select([
+          'order',
+          'delivery',
+          'invoice.status',
+          'payment.amount',
+          'payment.method',
+          'payment.status',
+          'ordItems',
+          'ordItemToppings',
+        ])
         .getOne();
 
       if (!order) {
