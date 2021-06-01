@@ -78,7 +78,13 @@ export class Delivery {
   updatedAt: Date;
 
   @Column({ nullable: true })
+  orderTime: Date;
+
+  @Column({ nullable: true })
   deliveredAt: Date;
+
+  @Column({ nullable: true })
+  expectedDeliveryTime: Date;
 
   @OneToOne(() => Order, (order) => order.delivery) // specify inverse side as a second parameter
   @JoinColumn()
