@@ -11,6 +11,7 @@ import {
   GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
+  GetOrdersOfCustomerDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
@@ -756,6 +757,20 @@ export class OrderService {
     // update delivery fee, distance and order grandTotal
     order.delivery.shippingFee = shippingFee;
     order.delivery.distance = Math.floor(distance);
+    // calculate expected delivery time
+    const AVG_TIME_PER_1KM = 10;
+    const calculateEAT = (
+      restaurantPreparationTime: number,
+      deliveryDistance: number,
+    ) =>
+      restaurantPreparationTime + (deliveryDistance / 1000) * AVG_TIME_PER_1KM;
+    const getPreparationTime = (order: Order) => 12;
+
+    const preparationTime = getPreparationTime(order);
+    const EAT = calculateEAT(preparationTime, distance);
+    const expectedDeliveryTime = new Date(Date.now() + EAT);
+    order.delivery.expectedDeliveryTime = expectedDeliveryTime;
+
     order.grandTotal = calculateOrderGrandToTal(order);
   }
 
@@ -1032,7 +1047,11 @@ export class OrderService {
 
   async placeOrder(order: Order) {
     order.status = OrdStatus.ORDERED;
-    await this.orderRepository.save(order);
+    order.delivery.orderTime = new Date();
+    await Promise.all([
+      this.orderRepository.save(order),
+      this.deliveryRepository.save(order.delivery),
+    ]);
     this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 
