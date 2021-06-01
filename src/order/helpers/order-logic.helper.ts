@@ -188,17 +188,16 @@ export const calculateShippingFee = (
     longitude: customerGeom.coordinates[1],
   };
 
-  const distance = Geo.getDistanceFrom2Geo(restaurantGeo, customerGeo);
+  const rawDistance = Geo.getDistanceFrom2Geo(restaurantGeo, customerGeo);
+  const distance = Math.round(rawDistance / 100) * 100;
 
   /* Nếu khoảng cách <3km thì phí ship là 15000đồng, mỗi 1km 5000 đồng*/
   if (distance <= FIRST_SHIPPING_KILOMETER)
     shippingFee = FIRST_THREE_KILOMETER_FEE;
   else {
-    const extraKilometer = Math.floor(
-      (distance - FIRST_SHIPPING_KILOMETER) / 1000,
-    );
     shippingFee =
-      FIRST_THREE_KILOMETER_FEE + (extraKilometer + 1) * EXTRA_KILOMETER_FEE;
+      FIRST_THREE_KILOMETER_FEE +
+      (distance - FIRST_THREE_KILOMETER_FEE) * EXTRA_KILOMETER_FEE;
   }
   return { shippingFee, distance };
 };
