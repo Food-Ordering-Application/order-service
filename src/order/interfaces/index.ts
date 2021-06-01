@@ -9,3 +9,8 @@ export { ISimpleResponse } from './simple-response.interface';
 export { ISaveOrderResponse } from './save-order-response.interface';
 export { IConfirmOrderCheckoutResponse } from './confirm-order-checkout-response.interface';
 export { IApprovePaypalOrder } from './approve-paypal-order-response.interface';
+export { IDelivery } from './delivery.interface';
+export { ICustomerOrder } from './customer-order.interface';
+export { IInvoice } from './invoice.interface';
+export { IPayment } from './payment.interface';
+export { ICustomerOrdersResponse } from './customer-orders-response.interface';
