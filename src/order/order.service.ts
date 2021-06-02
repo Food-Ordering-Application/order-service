@@ -570,7 +570,7 @@ export class OrderService {
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.invoice', 'invoice')
-        .leftJoinAndSelect('order.payment', 'payment')
+        .leftJoinAndSelect('invoice.payment', 'payment')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
@@ -1166,14 +1166,14 @@ export class OrderService {
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.delivery', 'delivery')
       .leftJoinAndSelect('order.invoice', 'invoice')
-      .leftJoinAndSelect('order.payment', 'payment')
+      .leftJoinAndSelect('invoice.payment', 'payment')
       .where('delivery.customerId = :customerId', {
         customerId: customerId,
       });
 
     if (orderStatuses.length) {
       orderQueryBuilder = orderQueryBuilder.andWhere(
-        'order.status IN (:...orderStatus)',
+        'order.status IN (:...orderStatuses)',
         {
           orderStatuses: orderStatuses,
         },
@@ -1183,16 +1183,17 @@ export class OrderService {
     if (from && to) {
       const fromDate = new Date(from);
       const toDate = new Date(to);
+
       orderQueryBuilder = orderQueryBuilder
-        .andWhere('order.createdAt >= :startDate', {
+        .andWhere('delivery.orderTime >= :startDate', {
           startDate: fromDate.toISOString(),
         })
-        .andWhere('order.createdAt <= :endDate', {
+        .andWhere('delivery.orderTime <= :endDate', {
           endDate: toDate.toISOString(),
         });
     }
 
-    const orders = await orderQueryBuilder
+    orderQueryBuilder = orderQueryBuilder
       .select([
         'order',
         'delivery',
@@ -1203,8 +1204,9 @@ export class OrderService {
       ])
       .orderBy(isDraft ? 'order.updatedAt' : 'delivery.updatedAt', 'DESC')
       .skip(offset)
-      .take(limit)
-      .getMany();
+      .take(limit);
+
+    const orders = await orderQueryBuilder.getMany();
 
     return {
       status: HttpStatus.OK,
@@ -1227,14 +1229,15 @@ export class OrderService {
     getOrderHistoryOfCustomerDto: GetOrderHistoryOfCustomerDto,
   ): Promise<ICustomerOrdersResponse> {
     const {
-      filter = [OrdStatus.ORDERED, OrdStatus.CONFIRMED],
+      filter = [OrdStatus.COMPLETED, OrdStatus.CANCELLED],
       ...getOrdersOfCustomerDto
     } = getOrderHistoryOfCustomerDto;
 
-    const filteredOrderStatus = [OrdStatus.ORDERED, OrdStatus.CONFIRMED].filter(
-      (value) => filter.includes(value),
-    );
-
+    const filteredOrderStatus = [
+      OrdStatus.COMPLETED,
+      OrdStatus.CANCELLED,
+    ].filter((value) => filter.includes(value));
+    console.log({ filter, filteredOrderStatus });
     return this.getOrdersOfCustomer(
       getOrdersOfCustomerDto,
       filteredOrderStatus,
