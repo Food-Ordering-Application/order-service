@@ -16,6 +16,8 @@ import {
   ConfirmOrderCheckoutDto,
   ApprovePaypalOrderDto,
   GetListOrderOfDriverDto,
+  GetOrdersOfCustomerDto,
+  GetOrderHistoryOfCustomerDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -23,6 +25,7 @@ import {
   ISaveOrderResponse,
   IConfirmOrderCheckoutResponse,
   IApprovePaypalOrder,
+  ICustomerOrdersResponse,
 } from './interfaces';
 
 @Controller()
@@ -147,5 +150,31 @@ export class OrderController {
     getListOrderOfDriverDto: GetListOrderOfDriverDto,
   ): Promise<IOrdersResponse> {
     return this.orderService.getListOrderOfDriver(getListOrderOfDriverDto);
+  }
+
+  @MessagePattern('getOnGoingOrdersOfCustomer')
+  async getOnGoingOrderOfCustomer(
+    @Payload()
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.orderService.getOnGoingOrdersOfCustomer(getOrdersOfCustomerDto);
+  }
+
+  @MessagePattern('getOrderHistoryOfCustomer')
+  async getOrderHistoryOfCustomer(
+    @Payload()
+    getOrderHistoryOfCustomerDto: GetOrderHistoryOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.orderService.getOrderHistoryOfCustomer(
+      getOrderHistoryOfCustomerDto,
+    );
+  }
+
+  @MessagePattern('getDraftOrdersOfCustomer')
+  async getDraftOrdersOfCustomer(
+    @Payload()
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.orderService.getDraftOrdersOfCustomer(getOrdersOfCustomerDto);
   }
 }
