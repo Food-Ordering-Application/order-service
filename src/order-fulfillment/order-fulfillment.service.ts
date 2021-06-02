@@ -75,7 +75,7 @@ export class OrderFulfillmentService {
   async sendConfirmOrderEvent(order: Order) {
     this.notificationServiceClient.emit(
       'orderConfirmedByRestaurantEvent',
-      order,
+      filteredOrder(order, allowed),
     );
 
     this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
@@ -83,26 +83,35 @@ export class OrderFulfillmentService {
   }
 
   async sendCancelOrderEvent(order: Order) {
-    this.notificationServiceClient.emit('orderHasBeenCancelledEvent', order);
+    this.notificationServiceClient.emit(
+      'orderHasBeenCancelledEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderHasBeenCancelledEvent');
   }
 
   async sendDriverAcceptOrderEvent(order: Order) {
     this.notificationServiceClient.emit(
       'orderHasBeenAssignedToDriverEvent',
-      order,
+      filteredOrder(order, allowed),
     );
     this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', order);
     this.logger.log(order, 'noti: orderHasBeenAssignedToDriverEvent');
   }
 
   async sendDriverPickUpOrderEvent(order: Order) {
-    this.notificationServiceClient.emit('orderHasBeenPickedUpEvent', order);
+    this.notificationServiceClient.emit(
+      'orderHasBeenPickedUpEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderHasBeenPickedUpEvent');
   }
 
   async sendDriverCompleteOrderEvent(order: Order) {
-    this.notificationServiceClient.emit('orderHasBeenCompletedEvent', order);
+    this.notificationServiceClient.emit(
+      'orderHasBeenCompletedEvent',
+      filteredOrder(order, allowed),
+    );
     this.userServiceClient.emit('orderHasBeenCompletedEvent', order);
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
@@ -143,6 +152,7 @@ export class OrderFulfillmentService {
     }
 
     order.cashierId = cashierId;
+    order.status = OrdStatus.CONFIRMED;
     order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
     await Promise.all([
       this.orderRepository.save(order),
