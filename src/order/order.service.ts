@@ -1154,7 +1154,13 @@ export class OrderService {
     orderStatuses: OrdStatus[] = [],
     isDraft = false,
   ): Promise<ICustomerOrdersResponse> {
-    const { customerId, from = null, to = null } = getOrdersOfCustomerDto;
+    const {
+      customerId,
+      from = null,
+      to = null,
+      offset = 0,
+      limit = 10,
+    } = getOrdersOfCustomerDto;
 
     let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
       .createQueryBuilder('order')
@@ -1196,6 +1202,8 @@ export class OrderService {
         'payment.status',
       ])
       .orderBy(isDraft ? 'order.updatedAt' : 'delivery.updatedAt', 'DESC')
+      .skip(offset)
+      .take(limit)
       .getMany();
 
     return {
