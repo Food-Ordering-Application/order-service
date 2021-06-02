@@ -14,8 +14,7 @@ import { Coordinate, Geo } from './geo.helper';
 
 export const createAndStoreOrderItem = async (
   orderItem: OrderItemDto,
-  orderItemToppingRepository: Repository<OrderItemTopping>,
-  orderItemRepository: Repository<OrderItem>,
+  queryRunner,
 ) => {
   const {
     menuItemId,
@@ -42,7 +41,7 @@ export const createAndStoreOrderItem = async (
       addOrderItemTopping.quantity = orderItemToppings[i].quantity;
       addOrderItemTopping.name = orderItemToppings[i].name;
       addOrderItemTopping.state = State.IN_STOCK;
-      await orderItemToppingRepository.save(addOrderItemTopping);
+      await queryRunner.manager.save(OrderItemTopping, addOrderItemTopping);
       addOrderItemToppings.push(addOrderItemTopping);
       totalPriceToppings +=
         orderItemToppings[i].price * orderItemToppings[i].quantity;
@@ -52,7 +51,7 @@ export const createAndStoreOrderItem = async (
   addOrderItem.subTotal = totalPriceToppings + orderItemPrice;
   const addOrderItems: OrderItem[] = [];
   addOrderItems.push(addOrderItem);
-  await orderItemRepository.save(addOrderItem);
+  await queryRunner.manager.save(OrderItem, addOrderItem);
   return {
     addOrderItems,
     totalPriceToppings,

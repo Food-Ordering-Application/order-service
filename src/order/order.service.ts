@@ -1,8 +1,8 @@
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
+import { Connection, Repository, SelectQueryBuilder } from 'typeorm';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -81,6 +81,8 @@ export class OrderService {
     private cashPaymentRepository: Repository<CashPayment>,
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
+    @InjectConnection()
+    private connection: Connection,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -101,17 +103,17 @@ export class OrderService {
       customerName = null,
       customerPhoneNumber = null,
     } = customer || {};
+    let queryRunner;
     try {
       // TODO: make this a transaction
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
       // Tạo và lưu orderItem
       const {
         addOrderItems,
         totalPriceToppings,
-      } = await createAndStoreOrderItem(
-        orderItem,
-        this.orderItemToppingRepository,
-        this.orderItemRepository,
-      );
+      } = await createAndStoreOrderItem(orderItem, queryRunner);
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -124,7 +126,7 @@ export class OrderService {
         // Nếu là order bên POS thì có cashierId
         order.cashierId = cashierId;
         order.grandTotal = calculateOrderGrandToTal(order);
-        await this.orderRepository.save(order);
+        await queryRunner.manager.save(Order, order);
         return {
           status: HttpStatus.CREATED,
           message: 'Order created successfully',
@@ -159,13 +161,13 @@ export class OrderService {
       }
 
       await Promise.all([
-        this.deliveryRepository.save(order.delivery),
-        this.orderRepository.save(order),
+        queryRunner.manager.save(Delivery, order.delivery),
+        queryRunner.manager.save(Order, order),
       ]);
 
       delete delivery.order;
       const newOrder = { ...order, delivery: delivery };
-
+      await queryRunner.commitTransaction();
       return {
         status: HttpStatus.CREATED,
         message: 'Order created successfully',
@@ -173,6 +175,7 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       console.log('Error in createOrder');
 
       return {
@@ -180,6 +183,8 @@ export class OrderService {
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -223,6 +228,7 @@ export class OrderService {
   async addNewItemToOrder(
     addNewItemToOrderDto: AddNewItemToOrderDto,
   ): Promise<ICreateOrderResponse> {
+    let queryRunner;
     try {
       // TODO: make this a transaction
       const { sendItem, orderId } = addNewItemToOrderDto;
@@ -245,6 +251,10 @@ export class OrderService {
         };
       }
 
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
       const foundOrderItem = findOrderItem(sendItem, order.orderItems);
       const foundOrderItemIndex = findOrderItemIndex(
         sendItem,
@@ -254,7 +264,7 @@ export class OrderService {
       // trong order thì tăng số lượng orderItem đã có sẵn
       if (foundOrderItem) {
         foundOrderItem.quantity += sendItem.quantity;
-        await this.orderItemRepository.save(foundOrderItem);
+        await queryRunner.manager.save(OrderItem, foundOrderItem);
         order.orderItems[foundOrderItemIndex] = foundOrderItem;
         // Tính toán lại giá
         order.subTotal = calculateOrderSubTotal(order.orderItems);
@@ -265,11 +275,7 @@ export class OrderService {
         const {
           addOrderItems,
           totalPriceToppings,
-        } = await createAndStoreOrderItem(
-          sendItem,
-          this.orderItemToppingRepository,
-          this.orderItemRepository,
-        );
+        } = await createAndStoreOrderItem(sendItem, queryRunner);
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -280,7 +286,8 @@ export class OrderService {
       }
       order.grandTotal = calculateOrderGrandToTal(order);
       // Lưu lại order
-      await this.orderRepository.save(order);
+      await queryRunner.manager.save(Order, order);
+      await queryRunner.commitTransaction();
       return {
         status: HttpStatus.OK,
         message: 'New orderItem added successfully',
@@ -288,17 +295,21 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async reduceOrderItemQuantity(
     reduceOrderItemQuantityDto: ReduceOrderItemQuantityDto,
   ): Promise<ICreateOrderResponse> {
+    let queryRunner;
     try {
       let flag = 0;
       const { orderId, orderItemId } = reduceOrderItemQuantityDto;
@@ -311,6 +322,18 @@ export class OrderService {
           orderId: orderId,
         })
         .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+          order: null,
+        };
+      }
+
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
       // Tìm ra orderitem đó và sửa lại quantity
       const orderItem = order.orderItems.find(
@@ -325,22 +348,23 @@ export class OrderService {
         );
         order.orderItems = newOrderItems;
         // Remove hết tất cả orderItemTopping của orderItem đó
-        await this.orderItemToppingRepository.remove(
+        await queryRunner.manager.remove(
+          OrderItemTopping,
           orderItem.orderItemToppings,
         );
         if (newOrderItems.length === 0) {
           flag = 1;
-          await this.orderItemRepository.remove(orderItem);
+          await queryRunner.manager.remove(OrderItem, orderItem);
           if (order.delivery) {
-            await this.deliveryRepository.remove(order.delivery);
+            await queryRunner.manager.remove(Delivery, order.delivery);
           }
-          await this.orderRepository.remove(order);
+          await queryRunner.manager.remove(Order, order);
         } else {
           order.subTotal = calculateOrderSubTotal(order.orderItems);
           order.grandTotal = calculateOrderGrandToTal(order);
           await Promise.all([
-            this.orderRepository.save(order),
-            this.orderItemRepository.remove(orderItem),
+            queryRunner.manager.save(Order, order),
+            queryRunner.manager.remove(OrderItem, orderItem),
           ]);
         }
       } else {
@@ -351,10 +375,11 @@ export class OrderService {
         order.subTotal = calculateOrderSubTotal(order.orderItems);
         order.grandTotal = calculateOrderGrandToTal(order);
         await Promise.all([
-          this.orderItemRepository.save(orderItem),
-          this.orderRepository.save(order),
+          queryRunner.manager.save(OrderItem, orderItem),
+          queryRunner.manager.save(Order, order),
         ]);
       }
+      await queryRunner.commitTransaction();
       if (flag === 1) {
         return {
           status: HttpStatus.OK,
@@ -369,17 +394,21 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async increaseOrderItemQuantity(
     increaseOrderItemQuantityDto: IncreaseOrderItemQuantityDto,
   ): Promise<ICreateOrderResponse> {
+    let queryRunner;
     try {
       const { orderId, orderItemId } = increaseOrderItemQuantityDto;
       const order = await this.orderRepository
@@ -402,11 +431,16 @@ export class OrderService {
       order.orderItems[orderItemIndex] = orderItem;
       order.subTotal = calculateOrderSubTotal(order.orderItems);
       order.grandTotal = calculateOrderGrandToTal(order);
-      await Promise.all([
-        this.orderItemRepository.save(orderItem),
-        this.orderRepository.save(order),
-      ]);
 
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      await Promise.all([
+        queryRunner.manager.save(OrderItem, orderItem),
+        queryRunner.manager.save(Order, order),
+      ]);
+      await queryRunner.commitTransaction();
       return {
         status: HttpStatus.OK,
         message: 'Increase orderItem quantity successfully',
@@ -414,17 +448,21 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async removeOrderItem(
     removeOrderItemDto: RemoveOrderItemDto,
   ): Promise<ICreateOrderResponse> {
+    let queryRunner;
     try {
       // TODO: make this a transaction
       const { orderItemId, orderId } = removeOrderItemDto;
@@ -447,11 +485,16 @@ export class OrderService {
         };
       }
 
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
       const orderItemToDelete = order.orderItems.find(
         (ordItem) => ordItem.id === orderItemId,
       );
       // Xóa các orderItemTopping của orderItem đó nếu có
-      await this.orderItemToppingRepository.remove(
+      await queryRunner.manager.remove(
+        OrderItemTopping,
         orderItemToDelete.orderItemToppings,
       );
       // Xóa orderItem đó trong order.orderItems trả về người dùng
@@ -459,7 +502,7 @@ export class OrderService {
         (ordItem) => ordItem.id !== orderItemId,
       );
       // Xóa orderItem đó
-      await this.orderItemRepository.remove(orderItemToDelete);
+      await queryRunner.manager.remove(OrderItem, orderItemToDelete);
 
       let flag = 0;
 
@@ -467,15 +510,16 @@ export class OrderService {
       if (order.orderItems.length === 0) {
         flag = 1;
         if (order.delivery) {
-          await this.deliveryRepository.remove(order.delivery);
+          await queryRunner.manager.remove(Delivery, order.delivery);
         }
-        await this.orderRepository.remove(order);
+        await queryRunner.manager.remove(Order, order);
       } else {
         // Tính toán lại giá
         order.subTotal = calculateOrderSubTotal(order.orderItems);
         order.grandTotal = calculateOrderGrandToTal(order);
-        await Promise.all([this.orderRepository.save(order)]);
+        await Promise.all([queryRunner.manager.save(Order, order)]);
       }
+      await queryRunner.commitTransaction();
       if (flag) {
         return {
           status: HttpStatus.OK,
@@ -490,11 +534,14 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -603,6 +650,7 @@ export class OrderService {
   async updateOrderItemQuantity(
     updateOrderItemQuantityDto: UpdateOrderItemQuantityDto,
   ): Promise<ICreateOrderResponse> {
+    let queryRunner;
     try {
       let flag = 0;
       // TODO: make this a transaction
@@ -630,6 +678,9 @@ export class OrderService {
         (item) => item.id === orderItemId,
       );
 
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
       orderItem.quantity = quantity;
       // Nếu quantity là 0 thì xóa orderItem khỏi order
       if (orderItem.quantity < 1) {
@@ -638,22 +689,23 @@ export class OrderService {
         );
         order.orderItems = newOrderItems;
         // Remove hết tất cả orderItemTopping của orderItem đó
-        await this.orderItemToppingRepository.remove(
+        await queryRunner.manager.remove(
+          OrderItemTopping,
           orderItem.orderItemToppings,
         );
         if (newOrderItems.length === 0) {
           flag = 1;
-          await this.orderItemRepository.remove(orderItem);
+          await queryRunner.manager.remove(OrderItem, orderItem);
           if (order.delivery) {
-            await this.deliveryRepository.remove(order.delivery);
+            await queryRunner.manager.remove(Delivery, order.delivery);
           }
-          await this.orderRepository.remove(order);
+          await queryRunner.manager.remove(Order, order);
         } else {
           order.subTotal = calculateOrderSubTotal(order.orderItems);
           order.grandTotal = calculateOrderGrandToTal(order);
           await Promise.all([
-            this.orderRepository.save(order),
-            this.orderItemRepository.remove(orderItem),
+            queryRunner.manager.save(Order, order),
+            queryRunner.manager.remove(OrderItem, orderItem),
           ]);
         }
       } else {
@@ -664,10 +716,11 @@ export class OrderService {
         order.subTotal = calculateOrderSubTotal(order.orderItems);
         order.grandTotal = calculateOrderGrandToTal(order);
         await Promise.all([
-          this.orderItemRepository.save(orderItem),
-          this.orderRepository.save(order),
+          queryRunner.manager.save(OrderItem, orderItem),
+          queryRunner.manager.save(Order, order),
         ]);
       }
+      await queryRunner.commitTransaction();
       if (flag === 1) {
         return {
           status: HttpStatus.OK,
@@ -683,11 +736,14 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
         order: null,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -766,7 +822,7 @@ export class OrderService {
   async confirmOrderCheckout(
     confirmOrderCheckoutDto: ConfirmOrderCheckoutDto,
   ): Promise<IConfirmOrderCheckoutResponse> {
-    console.log('push');
+    let queryRunner;
     try {
       const {
         note,
@@ -821,6 +877,9 @@ export class OrderService {
       if (note) {
         order.note = note;
       }
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
       //TODO: Tạo invoice, payment entity với phương thức thanh toán
       const invoice = new Invoice();
       invoice.order = order;
@@ -828,21 +887,25 @@ export class OrderService {
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
       await Promise.all([
-        this.orderRepository.save(order),
-        this.invoiceRepository.save(invoice),
+        queryRunner.manager.save(Order, order),
+        queryRunner.manager.save(Invoice, invoice),
       ]);
 
       const payment = new Payment();
       payment.amount = calculateOrderGrandToTal(order);
       payment.invoice = invoice;
-      payment.status = PaymentStatus.PENDING;
+      payment.status = PaymentStatus.PENDING_USER_ACTION;
       payment.method = paymentMethod;
-      await this.paymentRepository.save(payment);
+      await queryRunner.manager.save(Payment, payment);
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
-          await this.placeOrder(order);
-          break;
+          await this.placeOrder(order, queryRunner);
+          await queryRunner.commitTransaction();
+          return {
+            status: HttpStatus.OK,
+            message: 'Confirm order checkout successfully',
+          };
         case PaymentMethod.PAYPAL:
           const exchangeRate = await axios.get(
             'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
@@ -927,36 +990,34 @@ export class OrderService {
             ],
           });
           const paypalOrder = await client().execute(request);
-          console.log('OK');
           //TODO: Tạo đối tượng paypal payment và lưu lại
           const paypalPayment = new PaypalPayment();
           paypalPayment.paypalOrderId = paypalOrder.result.id;
           paypalPayment.payment = payment;
-          await this.paypalPaymentRepository.save(paypalPayment);
-
+          await queryRunner.manager.save(PaypalPayment, paypalPayment);
+          await queryRunner.commitTransaction();
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
             paypalOrderId: paypalOrder.result.id,
           };
       }
-
-      return {
-        status: HttpStatus.OK,
-        message: 'Confirm order checkout successfully',
-      };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async approvePaypalOrder(
     approvePaypalOrderDto: ApprovePaypalOrderDto,
   ): Promise<IApprovePaypalOrder> {
+    let queryRunner;
     try {
       const { paypalOrderId, orderId, customerId } = approvePaypalOrderDto;
 
@@ -997,20 +1058,27 @@ export class OrderService {
 
       const capture = await client().execute(request);
       //TODO: Save the capture ID to your database.
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
       const captureID =
         capture.result.purchase_units[0].payments.captures[0].id;
       //TODO: Lưu lại captureId, update order status, payment status.
       order.invoice.payment.paypalPayment.captureId = captureID;
-      //TODO: Đổi trạng thái payment sang đã thành công
-      order.invoice.payment.status = PaymentStatus.COMPLETED;
+      //TODO: Đổi trạng thái payment sang đang xử lý
+      order.invoice.payment.status = PaymentStatus.PROCESSING;
       //TODO: Đổi trạng thái invoice sang đã thanh toán
       order.invoice.status = InvoiceStatus.PAID;
       await Promise.all([
-        this.placeOrder(order),
-        this.paypalPaymentRepository.save(order.invoice.payment.paypalPayment),
-        this.paymentRepository.save(order.invoice.payment),
-        this.invoiceRepository.save(order.invoice),
+        this.placeOrder(order, queryRunner),
+        queryRunner.manager.save(
+          PaypalPayment,
+          order.invoice.payment.paypalPayment,
+        ),
+        queryRunner.manager.save(Payment, order.invoice.payment),
+        queryRunner.manager.save(Invoice, order.invoice),
       ]);
+      await queryRunner.commitTransaction();
 
       return {
         status: HttpStatus.OK,
@@ -1018,10 +1086,13 @@ export class OrderService {
       };
     } catch (error) {
       this.logger.error(error);
+      await queryRunner.rollbackTransaction();
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
       };
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -1039,9 +1110,9 @@ export class OrderService {
     };
   }
 
-  async placeOrder(order: Order) {
+  async placeOrder(order: Order, queryRunner) {
     order.status = OrdStatus.ORDERED;
-    await this.orderRepository.save(order);
+    await queryRunner.manager.save(Order, order);
     this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 
