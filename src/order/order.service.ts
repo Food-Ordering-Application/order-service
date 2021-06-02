@@ -1228,16 +1228,17 @@ export class OrderService {
   async getOrderHistoryOfCustomer(
     getOrderHistoryOfCustomerDto: GetOrderHistoryOfCustomerDto,
   ): Promise<ICustomerOrdersResponse> {
-    const {
-      filter = [OrdStatus.COMPLETED, OrdStatus.CANCELLED],
-      ...getOrdersOfCustomerDto
-    } = getOrderHistoryOfCustomerDto;
+    const { filter, ...getOrdersOfCustomerDto } = getOrderHistoryOfCustomerDto;
+
+    const validFilter = filter
+      ? filter
+      : [OrdStatus.COMPLETED, OrdStatus.CANCELLED];
 
     const filteredOrderStatus = [
       OrdStatus.COMPLETED,
       OrdStatus.CANCELLED,
-    ].filter((value) => filter.includes(value));
-    console.log({ filter, filteredOrderStatus });
+    ].filter((value) => validFilter.includes(value));
+
     return this.getOrdersOfCustomer(
       getOrdersOfCustomerDto,
       filteredOrderStatus,
