@@ -480,7 +480,7 @@ export class OrderFulfillmentService {
 
     // update payment
     if (order.invoice.payment.method == PaymentMethod.COD) {
-      order.invoice.payment.status = PaymentStatus.COMPLETED;
+      order.invoice.payment.status = PaymentStatus.SUCCESS;
       order.invoice.status = InvoiceStatus.PAID;
       promises.push(
         this.paymentRepository.save(order.invoice.payment),
