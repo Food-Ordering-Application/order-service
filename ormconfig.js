@@ -7,7 +7,7 @@ module.exports = {
   database: process.env.POSTGRES_DB,
   entities: [__dirname + '/**/*.entity.{js,ts}'],
   migrations: ['src/database/migrations/**/*{.ts,.js}'],
-  synchronize: true,
+  synchronize: false,
   seeds: [__dirname + '/**/seeders/**/*.seed{.ts,.js}'],
   factories: [__dirname + '/**/factories/**/*.factory{.ts,.js}'],
   ssl: true,
