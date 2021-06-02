@@ -99,12 +99,14 @@ export class OrderService {
     try {
       // TODO: make this a transaction
       // Tạo và lưu orderItem
-      const { addOrderItems, totalPriceToppings } =
-        await createAndStoreOrderItem(
-          orderItem,
-          this.orderItemToppingRepository,
-          this.orderItemRepository,
-        );
+      const {
+        addOrderItems,
+        totalPriceToppings,
+      } = await createAndStoreOrderItem(
+        orderItem,
+        this.orderItemToppingRepository,
+        this.orderItemRepository,
+      );
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -247,12 +249,14 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const { addOrderItems, totalPriceToppings } =
-          await createAndStoreOrderItem(
-            sendItem,
-            this.orderItemToppingRepository,
-            this.orderItemRepository,
-          );
+        const {
+          addOrderItems,
+          totalPriceToppings,
+        } = await createAndStoreOrderItem(
+          sendItem,
+          this.orderItemToppingRepository,
+          this.orderItemRepository,
+        );
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -751,8 +755,13 @@ export class OrderService {
   ): Promise<IConfirmOrderCheckoutResponse> {
     console.log('push');
     try {
-      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
-        confirmOrderCheckoutDto;
+      const {
+        note,
+        paymentMethod,
+        orderId,
+        customerId,
+        paypalMerchantId,
+      } = confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
