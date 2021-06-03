@@ -91,23 +91,23 @@ export class OrderService {
   async createOrderAndFirstOrderItem(
     createOrderDto: CreateOrderDto,
   ): Promise<ICreateOrderResponse> {
-    const { orderItem, restaurant, customer, cashierId } = createOrderDto;
-    const {
-      restaurantId,
-      restaurantGeom,
-      restaurantAddress,
-      restaurantName = null,
-      restaurantPhoneNumber = null,
-    } = restaurant;
-    const {
-      customerId = null,
-      customerGeom = null,
-      customerAddress = null,
-      customerName = null,
-      customerPhoneNumber = null,
-    } = customer || {};
     let queryRunner;
     try {
+      const { orderItem, restaurant, customer, cashierId } = createOrderDto;
+      const {
+        restaurantId,
+        restaurantGeom,
+        restaurantAddress,
+        restaurantName = null,
+        restaurantPhoneNumber = null,
+      } = restaurant;
+      const {
+        customerId = null,
+        customerGeom = null,
+        customerAddress = null,
+        customerName = null,
+        customerPhoneNumber = null,
+      } = customer || {};
       // TODO: make this a transaction
       queryRunner = this.connection.createQueryRunner();
       await queryRunner.connect();
@@ -139,6 +139,8 @@ export class OrderService {
       // Tạo và lưu delivery
       const delivery = new Delivery();
       order.delivery = delivery;
+      await queryRunner.manager.save(Order, order);
+
       delivery.order = order;
       delivery.status = DeliveryStatus.DRAFT;
 
@@ -161,10 +163,7 @@ export class OrderService {
         });
       }
 
-      await Promise.all([
-        queryRunner.manager.save(Delivery, order.delivery),
-        queryRunner.manager.save(Order, order),
-      ]);
+      await queryRunner.manager.save(Delivery, order.delivery);
 
       delete delivery.order;
       const newOrder = { ...order, delivery: delivery };
