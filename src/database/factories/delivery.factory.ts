@@ -24,16 +24,16 @@ define(Delivery, (faker: typeof Faker, context: Context) => {
   const customerGeom = {
     type: 'Point',
     coordinates: [
-      parseFloat(faker.address.latitude()),
       parseFloat(faker.address.longitude()),
+      parseFloat(faker.address.latitude()),
     ],
   };
 
   const restaurantGeom = {
     type: 'Point',
     coordinates: [
-      parseFloat(faker.address.latitude()),
       parseFloat(faker.address.longitude()),
+      parseFloat(faker.address.latitude()),
     ],
   };
   delivery.customerGeom = customerGeom;

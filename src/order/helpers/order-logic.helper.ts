@@ -178,13 +178,13 @@ export const calculateShippingFee = (
   let shippingFee;
 
   const restaurantGeo: Coordinate = {
-    latitude: restaurantGeom.coordinates[0],
-    longitude: restaurantGeom.coordinates[1],
+    latitude: restaurantGeom.coordinates[1],
+    longitude: restaurantGeom.coordinates[0],
   };
 
   const customerGeo: Coordinate = {
-    latitude: customerGeom.coordinates[0],
-    longitude: customerGeom.coordinates[1],
+    latitude: customerGeom.coordinates[1],
+    longitude: customerGeom.coordinates[0],
   };
 
   const rawDistance = Geo.getDistanceFrom2Geo(restaurantGeo, customerGeo);
