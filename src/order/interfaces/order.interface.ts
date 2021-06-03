@@ -1,4 +1,4 @@
-import { IOrderItem } from './index';
+import { IDelivery, IInvoice, IOrderItem } from './index';
 export interface IOrder {
   id: string;
   cashierId?: string;
@@ -13,4 +13,6 @@ export interface IOrder {
   createdAt?: Date;
   updatedAt?: Date;
   orderItems: IOrderItem[];
+  delivery: IDelivery;
+  invoice: IInvoice;
 }

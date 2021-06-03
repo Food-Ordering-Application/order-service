@@ -11,6 +11,8 @@ import {
   GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
+  GetOrderHistoryOfCustomerDto,
+  GetOrdersOfCustomerDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
@@ -41,6 +43,7 @@ import {
   IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
+  ICustomerOrdersResponse,
   IOrder,
   IOrdersResponse,
   ISaveOrderResponse,
@@ -110,10 +113,8 @@ export class OrderService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       // Tạo và lưu orderItem
-      const {
-        addOrderItems,
-        totalPriceToppings,
-      } = await createAndStoreOrderItem(orderItem, queryRunner);
+      const { addOrderItems, totalPriceToppings } =
+        await createAndStoreOrderItem(orderItem, queryRunner);
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -272,10 +273,8 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const {
-          addOrderItems,
-          totalPriceToppings,
-        } = await createAndStoreOrderItem(sendItem, queryRunner);
+        const { addOrderItems, totalPriceToppings } =
+          await createAndStoreOrderItem(sendItem, queryRunner);
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -616,12 +615,24 @@ export class OrderService {
 
       const order = await this.orderRepository
         .createQueryBuilder('order')
-        .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .where('order.id = :orderId', {
           orderId: orderId,
         })
+        .select([
+          'order',
+          'delivery',
+          'invoice.status',
+          'payment.amount',
+          'payment.method',
+          'payment.status',
+          'ordItems',
+          'ordItemToppings',
+        ])
         .getOne();
 
       if (!order) {
@@ -816,6 +827,20 @@ export class OrderService {
     // update delivery fee, distance and order grandTotal
     order.delivery.shippingFee = shippingFee;
     order.delivery.distance = Math.floor(distance);
+    // calculate expected delivery time
+    const AVG_TIME_PER_1KM = 10;
+    const calculateEAT = (
+      restaurantPreparationTime: number,
+      deliveryDistance: number,
+    ) =>
+      restaurantPreparationTime + (deliveryDistance / 1000) * AVG_TIME_PER_1KM;
+    const getPreparationTime = (order: Order) => 12;
+
+    const preparationTime = getPreparationTime(order);
+    const EAT = calculateEAT(preparationTime, distance);
+    const expectedDeliveryTime = new Date(Date.now() + EAT);
+    order.delivery.expectedDeliveryTime = expectedDeliveryTime;
+
     order.grandTotal = calculateOrderGrandToTal(order);
   }
 
@@ -824,13 +849,8 @@ export class OrderService {
   ): Promise<IConfirmOrderCheckoutResponse> {
     let queryRunner;
     try {
-      const {
-        note,
-        paymentMethod,
-        orderId,
-        customerId,
-        paypalMerchantId,
-      } = confirmOrderCheckoutDto;
+      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
+        confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
@@ -1112,7 +1132,11 @@ export class OrderService {
 
   async placeOrder(order: Order, queryRunner) {
     order.status = OrdStatus.ORDERED;
-    await queryRunner.manager.save(Order, order);
+    order.delivery.orderTime = new Date();
+    await Promise.all([
+      queryRunner.manager.save(Order, order),
+      queryRunner.manager.save(Delivery, order.delivery),
+    ]);
     this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 
@@ -1194,5 +1218,112 @@ export class OrderService {
         orders: null,
       };
     }
+  }
+
+  async getOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+    orderStatuses: OrdStatus[] = [],
+    isDraft = false,
+  ): Promise<ICustomerOrdersResponse> {
+    const {
+      customerId,
+      from = null,
+      to = null,
+      offset = 0,
+      limit = 10,
+    } = getOrdersOfCustomerDto;
+
+    let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
+      .where('delivery.customerId = :customerId', {
+        customerId: customerId,
+      });
+
+    if (orderStatuses.length) {
+      orderQueryBuilder = orderQueryBuilder.andWhere(
+        'order.status IN (:...orderStatuses)',
+        {
+          orderStatuses: orderStatuses,
+        },
+      );
+    }
+
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+
+      orderQueryBuilder = orderQueryBuilder
+        .andWhere('delivery.orderTime >= :startDate', {
+          startDate: fromDate.toISOString(),
+        })
+        .andWhere('delivery.orderTime <= :endDate', {
+          endDate: toDate.toISOString(),
+        });
+    }
+
+    orderQueryBuilder = orderQueryBuilder
+      .select([
+        'order',
+        'delivery',
+        'invoice.status',
+        'payment.amount',
+        'payment.method',
+        'payment.status',
+      ])
+      .orderBy(isDraft ? 'order.updatedAt' : 'delivery.updatedAt', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const orders = await orderQueryBuilder.getMany();
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Fetch orders of customer successfully',
+      orders: orders,
+    };
+  }
+
+  async getOnGoingOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      [OrdStatus.ORDERED, OrdStatus.CONFIRMED],
+      false,
+    );
+  }
+
+  async getOrderHistoryOfCustomer(
+    getOrderHistoryOfCustomerDto: GetOrderHistoryOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    const { filter, ...getOrdersOfCustomerDto } = getOrderHistoryOfCustomerDto;
+
+    const validFilter = filter
+      ? filter
+      : [OrdStatus.COMPLETED, OrdStatus.CANCELLED];
+
+    const filteredOrderStatus = [
+      OrdStatus.COMPLETED,
+      OrdStatus.CANCELLED,
+    ].filter((value) => validFilter.includes(value));
+
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      filteredOrderStatus,
+      false,
+    );
+  }
+
+  async getDraftOrdersOfCustomer(
+    getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.getOrdersOfCustomer(
+      getOrdersOfCustomerDto,
+      [OrdStatus.DRAFT],
+      true,
+    );
   }
 }
