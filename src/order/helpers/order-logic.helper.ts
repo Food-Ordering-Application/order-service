@@ -196,7 +196,7 @@ export const calculateShippingFee = (
   else {
     shippingFee =
       FIRST_THREE_KILOMETER_FEE +
-      (distance - FIRST_SHIPPING_KILOMETER) * EXTRA_KILOMETER_FEE;
+      ((distance - FIRST_SHIPPING_KILOMETER) / 1000) * EXTRA_KILOMETER_FEE;
   }
   return { shippingFee, distance };
 };
