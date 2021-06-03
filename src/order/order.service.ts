@@ -838,7 +838,7 @@ export class OrderService {
 
     const preparationTime = getPreparationTime(order);
     const EAT = calculateEAT(preparationTime, distance);
-    const expectedDeliveryTime = new Date(Date.now() + EAT);
+    const expectedDeliveryTime = new Date(Date.now() + EAT * 1000 * 60);
     order.delivery.expectedDeliveryTime = expectedDeliveryTime;
 
     order.grandTotal = calculateOrderGrandToTal(order);
