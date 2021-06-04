@@ -75,7 +75,7 @@ paypalRest.configure({
 console.log('NODE_ENV', process.env.NODE_ENV);
 
 const webhook_json = {
-  url: 'https://apigway.herokuapp.com/user/customer/event/order',
+  url: 'https://apigway.herokuapp.com/order/events',
   event_types: [
     {
       name: 'CHECKOUT.ORDER.APPROVED',
