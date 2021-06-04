@@ -64,34 +64,34 @@ import * as uniqid from 'uniqid';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 
-import * as paypalRest from 'paypal-rest-sdk';
+// import * as paypalRest from 'paypal-rest-sdk';
 
-paypalRest.configure({
-  mode: 'sandbox', // Sandbox or live
-  client_id: process.env.PAYPAL_CLIENT_ID,
-  client_secret: process.env.PAYPAL_CLIENT_SECRET,
-});
+// paypalRest.configure({
+//   mode: 'sandbox', // Sandbox or live
+//   client_id: process.env.PAYPAL_CLIENT_ID,
+//   client_secret: process.env.PAYPAL_CLIENT_SECRET,
+// });
 
-console.log('NODE_ENV', process.env.NODE_ENV);
+// console.log('NODE_ENV', process.env.NODE_ENV);
 
-const webhook_json = {
-  url: 'https://apigway.herokuapp.com/order/events',
-  event_types: [
-    {
-      name: 'CHECKOUT.ORDER.APPROVED',
-    },
-  ],
-};
+// const webhook_json = {
+//   url: 'https://apigway.herokuapp.com/order/events',
+//   event_types: [
+//     {
+//       name: 'CHECKOUT.ORDER.APPROVED',
+//     },
+//   ],
+// };
 
-paypalRest.notification.webhook.create(webhook_json, function (error, webhook) {
-  if (error) {
-    console.error(JSON.stringify(error.response));
-    // throw error;
-  } else {
-    console.log('Create webhook Response');
-    console.log(webhook);
-  }
-});
+// paypalRest.notification.webhook.create(webhook_json, function (error, webhook) {
+//   if (error) {
+//     console.error(JSON.stringify(error.response));
+//     // throw error;
+//   } else {
+//     console.log('Create webhook Response');
+//     console.log(webhook);
+//   }
+// });
 
 @Injectable()
 export class OrderService {
@@ -1371,6 +1371,7 @@ export class OrderService {
       console.log('order', order);
       if (!order) {
         console.log('Cannot found order');
+        return;
       }
 
       queryRunner = this.connection.createQueryRunner();
