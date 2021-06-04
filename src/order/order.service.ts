@@ -7,6 +7,7 @@ import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
   ConfirmOrderCheckoutDto,
+  EventPaypalOrderOccurDto,
   GetAllRestaurantOrderDto,
   GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
@@ -74,11 +75,11 @@ paypalRest.configure({
 console.log('NODE_ENV', process.env.NODE_ENV);
 
 const webhook_json = {
-  url: 'https://apigway.herokuapp.com/customer/event/order',
+  url: 'https://apigway.herokuapp.com/user/customer/event/order',
   event_types: [
     {
-      name: 'PAYMENT.CAPTURE.COMPLETED',
-    }
+      name: 'CHECKOUT.ORDER.APPROVED',
+    },
   ],
 };
 
@@ -1350,5 +1351,50 @@ export class OrderService {
       [OrdStatus.DRAFT],
       true,
     );
+  }
+
+  async eventPaypalOrderOccur(
+    eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
+  ) {
+    let queryRunner;
+    try {
+      const { event_type, resource } = eventPaypalOrderOccurDto;
+      // TODO: Lấy thông tin order dựa theo paypalOrderId
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
+        .where('paypalPayment.paypalOrderId = :paypalOrderId', {
+          paypalOrderId: resource.id,
+        })
+        .getOne();
+
+      if (!order) {
+        console.log('Cannot found order');
+      }
+
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      switch (event_type) {
+        case 'CHECKOUT.ORDER.COMPLETED':
+          //TODO: Update lại trạng thái Invoice và Payment
+          order.invoice.status = InvoiceStatus.PAID;
+          order.invoice.payment.status = PaymentStatus.SUCCESS;
+          await Promise.all([
+            queryRunner.manager.save(Invoice, order.invoice),
+            queryRunner.manager.save(Payment, order.invoice.payment),
+          ]);
+          break;
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      this.logger.error(error);
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

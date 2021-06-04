@@ -18,6 +18,7 @@ import {
   GetListOrderOfDriverDto,
   GetOrdersOfCustomerDto,
   GetOrderHistoryOfCustomerDto,
+  EventPaypalOrderOccurDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -27,6 +28,7 @@ import {
   IApprovePaypalOrder,
   ICustomerOrdersResponse,
 } from './interfaces';
+import { EventPattern } from '@nestjs/microservices';
 
 @Controller()
 export class OrderController {
@@ -176,5 +178,13 @@ export class OrderController {
     getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
   ): Promise<ICustomerOrdersResponse> {
     return this.orderService.getDraftOrdersOfCustomer(getOrdersOfCustomerDto);
+  }
+
+  @EventPattern('eventPaypalOrderOccur')
+  async eventPaypalOrderOccur(
+    @Payload()
+    eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
+  ) {
+    this.orderService.eventPaypalOrderOccur(eventPaypalOrderOccurDto);
   }
 }

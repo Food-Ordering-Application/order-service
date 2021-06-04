@@ -8,7 +8,7 @@ import {
   OneToOne,
 } from 'typeorm';
 import { OrdStatus } from '../enums';
-import { Delivery, OrderItem, Payment } from './index';
+import { Delivery, OrderItem } from './index';
 import { Invoice } from './invoice.entity';
 
 @Entity()
