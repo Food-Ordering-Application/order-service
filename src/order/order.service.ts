@@ -62,6 +62,36 @@ import axios from 'axios';
 import * as uniqid from 'uniqid';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
+
+import * as paypalRest from 'paypal-rest-sdk';
+
+paypalRest.configure({
+  mode: 'sandbox', // Sandbox or live
+  client_id: process.env.PAYPAL_CLIENT_ID,
+  client_secret: process.env.PAYPAL_CLIENT_SECRET,
+});
+
+console.log('NODE_ENV', process.env.NODE_ENV);
+
+const webhook_json = {
+  url: 'https://apigway.herokuapp.com/customer/event/order',
+  event_types: [
+    {
+      name: 'PAYMENT.CAPTURE.COMPLETED',
+    }
+  ],
+};
+
+paypalRest.notification.webhook.create(webhook_json, function (error, webhook) {
+  if (error) {
+    console.error(JSON.stringify(error.response));
+    throw error;
+  } else {
+    console.log('Create webhook Response');
+    console.log(webhook);
+  }
+});
+
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -113,10 +143,8 @@ export class OrderService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       // Tạo và lưu orderItem
-      const {
-        addOrderItems,
-        totalPriceToppings,
-      } = await createAndStoreOrderItem(orderItem, queryRunner);
+      const { addOrderItems, totalPriceToppings } =
+        await createAndStoreOrderItem(orderItem, queryRunner);
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -270,10 +298,8 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const {
-          addOrderItems,
-          totalPriceToppings,
-        } = await createAndStoreOrderItem(sendItem, queryRunner);
+        const { addOrderItems, totalPriceToppings } =
+          await createAndStoreOrderItem(sendItem, queryRunner);
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -848,13 +874,8 @@ export class OrderService {
   ): Promise<IConfirmOrderCheckoutResponse> {
     let queryRunner;
     try {
-      const {
-        note,
-        paymentMethod,
-        orderId,
-        customerId,
-        paypalMerchantId,
-      } = confirmOrderCheckoutDto;
+      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
+        confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
