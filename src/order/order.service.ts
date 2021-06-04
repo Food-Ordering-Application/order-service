@@ -1113,8 +1113,6 @@ export class OrderService {
       order.invoice.payment.paypalPayment.captureId = captureID;
       //TODO: Đổi trạng thái payment sang đang xử lý
       order.invoice.payment.status = PaymentStatus.PROCESSING;
-      //TODO: Đổi trạng thái invoice sang đã thanh toán
-      order.invoice.status = InvoiceStatus.PAID;
       await Promise.all([
         this.placeOrder(order, queryRunner),
         queryRunner.manager.save(
@@ -1122,7 +1120,6 @@ export class OrderService {
           order.invoice.payment.paypalPayment,
         ),
         queryRunner.manager.save(Payment, order.invoice.payment),
-        queryRunner.manager.save(Invoice, order.invoice),
       ]);
       await queryRunner.commitTransaction();
 
