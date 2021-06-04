@@ -1359,6 +1359,8 @@ export class OrderService {
     let queryRunner;
     try {
       const { event_type, resource } = eventPaypalOrderOccurDto;
+      console.log(event_type);
+      console.log(resource);
       // TODO: Lấy thông tin order dựa theo paypalOrderId
       const order = await this.orderRepository
         .createQueryBuilder('order')
@@ -1369,7 +1371,7 @@ export class OrderService {
           paypalOrderId: resource.id,
         })
         .getOne();
-
+      console.log('order', order);
       if (!order) {
         console.log('Cannot found order');
       }
