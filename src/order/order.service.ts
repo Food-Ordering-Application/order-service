@@ -85,7 +85,7 @@ const webhook_json = {
 paypalRest.notification.webhook.create(webhook_json, function (error, webhook) {
   if (error) {
     console.error(JSON.stringify(error.response));
-    throw error;
+    // throw error;
   } else {
     console.log('Create webhook Response');
     console.log(webhook);
