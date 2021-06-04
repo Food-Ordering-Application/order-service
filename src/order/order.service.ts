@@ -168,6 +168,7 @@ export class OrderService {
       // Nếu là order bên salechannel thì có customerId
       // Tạo và lưu delivery
       const delivery = new Delivery();
+      order.delivery = delivery;
       await queryRunner.manager.save(Order, order);
       console.log('Order', order);
       delivery.order = order;
