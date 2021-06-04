@@ -113,8 +113,10 @@ export class OrderService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       // Tạo và lưu orderItem
-      const { addOrderItems, totalPriceToppings } =
-        await createAndStoreOrderItem(orderItem, queryRunner);
+      const {
+        addOrderItems,
+        totalPriceToppings,
+      } = await createAndStoreOrderItem(orderItem, queryRunner);
       // Tạo và lưu order
       const order = new Order();
       order.restaurantId = restaurantId;
@@ -134,13 +136,11 @@ export class OrderService {
           order: order,
         };
       }
-
       // Nếu là order bên salechannel thì có customerId
       // Tạo và lưu delivery
       const delivery = new Delivery();
-      order.delivery = delivery;
       await queryRunner.manager.save(Order, order);
-
+      console.log('Order', order);
       delivery.order = order;
       delivery.status = DeliveryStatus.DRAFT;
 
@@ -162,9 +162,7 @@ export class OrderService {
           geo: customerGeom,
         });
       }
-
-      await queryRunner.manager.save(Delivery, order.delivery);
-
+      await queryRunner.manager.save(Delivery, delivery);
       delete delivery.order;
       const newOrder = { ...order, delivery: delivery };
       await queryRunner.commitTransaction();
@@ -272,8 +270,10 @@ export class OrderService {
         // Nếu item gửi lên giống với orderItem đã có sẵn nhưng khác topping hoặc gửi lên không giống
         // thì tạo orderItem mới
         // Tạo và lưu orderItem với orderItemTopping tương ứng
-        const { addOrderItems, totalPriceToppings } =
-          await createAndStoreOrderItem(sendItem, queryRunner);
+        const {
+          addOrderItems,
+          totalPriceToppings,
+        } = await createAndStoreOrderItem(sendItem, queryRunner);
 
         // Lưu orderItem mới vào order
         order.orderItems = [...order.orderItems, ...addOrderItems];
@@ -848,8 +848,13 @@ export class OrderService {
   ): Promise<IConfirmOrderCheckoutResponse> {
     let queryRunner;
     try {
-      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
-        confirmOrderCheckoutDto;
+      const {
+        note,
+        paymentMethod,
+        orderId,
+        customerId,
+        paypalMerchantId,
+      } = confirmOrderCheckoutDto;
 
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
