@@ -192,7 +192,10 @@ export class OrderService {
           geo: customerGeom,
         });
       }
-      await queryRunner.manager.save(Delivery, delivery);
+      await Promise.all([
+        queryRunner.manager.save(Delivery, delivery),
+        queryRunner.manager.save(Order, order),
+      ]);
       delete delivery.order;
       const newOrder = { ...order, delivery: delivery };
       await queryRunner.commitTransaction();
@@ -1174,6 +1177,8 @@ export class OrderService {
         query = DeliveryStatus.COMPLETED,
         page = 1,
         size = 10,
+        from = null,
+        to = null,
       } = getListOrderOfDriverDto;
       //TODO: Nếu người gọi api k phải là driver đó
       if (callerId.toString() !== driverId.toString()) {
@@ -1184,7 +1189,7 @@ export class OrderService {
         };
       }
 
-      const orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
+      let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
@@ -1193,6 +1198,20 @@ export class OrderService {
         .where('delivery.driverId = :driverId', {
           driverId: driverId,
         });
+
+      if (from && to) {
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+
+        orderQueryBuilder = orderQueryBuilder
+          .andWhere('order.createdAt >= :startDate', {
+            startDate: fromDate.toISOString(),
+          })
+          .andWhere('order.createdAt <= :endDate', {
+            endDate: toDate.toISOString(),
+          });
+      }
+
       let orders: IOrder[];
       switch (query) {
         case EDriverOrderType.ACTIVE:

@@ -4,4 +4,6 @@ export class GetListOrderOfDriverDto {
   query: string;
   page: number;
   size: number;
+  from?: string;
+  to?: string;
 }
