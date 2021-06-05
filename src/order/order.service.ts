@@ -1168,7 +1168,13 @@ export class OrderService {
     getListOrderOfDriverDto: GetListOrderOfDriverDto,
   ): Promise<IOrdersResponse> {
     try {
-      const { callerId, driverId, query } = getListOrderOfDriverDto;
+      const {
+        callerId,
+        driverId,
+        query = DeliveryStatus.COMPLETED,
+        page = 1,
+        size = 10,
+      } = getListOrderOfDriverDto;
       //TODO: Nếu người gọi api k phải là driver đó
       if (callerId.toString() !== driverId.toString()) {
         return {
@@ -1182,6 +1188,8 @@ export class OrderService {
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .skip((page - 1) * size)
+        .take(size)
         .where('delivery.driverId = :driverId', {
           driverId: driverId,
         });
@@ -1205,7 +1213,6 @@ export class OrderService {
             .getMany();
           break;
       }
-      // console.log('FindOrder', orders);
 
       const mappedOrders = orders.map((order) => {
         const mappedOrderItems = order.orderItems.map((orderItem) => {
