@@ -170,7 +170,6 @@ export class OrderService {
       const delivery = new Delivery();
       order.delivery = delivery;
       await queryRunner.manager.save(Order, order);
-      console.log('Order', order);
       delivery.order = order;
       delivery.status = DeliveryStatus.DRAFT;
 
@@ -196,6 +195,7 @@ export class OrderService {
         queryRunner.manager.save(Delivery, delivery),
         queryRunner.manager.save(Order, order),
       ]);
+      console.log('Order', order);
       delete delivery.order;
       const newOrder = { ...order, delivery: delivery };
       await queryRunner.commitTransaction();
@@ -1019,7 +1019,7 @@ export class OrderService {
                   },
                 },
                 payee: {
-                  merchant_id: paypalMerchantId,
+                  merchant_id: 'K44SSKZZBVWCN',
                 },
                 payment_instruction: {
                   disbursement_mode: 'INSTANT',
