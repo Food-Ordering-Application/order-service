@@ -215,7 +215,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -331,7 +333,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -430,7 +434,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -484,7 +490,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -570,7 +578,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -784,7 +794,9 @@ export class OrderService {
         order: null,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -881,7 +893,9 @@ export class OrderService {
     try {
       const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
         confirmOrderCheckoutDto;
-
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
       //TODO: Lấy thông tin order
       const order = await this.orderRepository
         .createQueryBuilder('order')
@@ -927,9 +941,7 @@ export class OrderService {
       if (note) {
         order.note = note;
       }
-      queryRunner = this.connection.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
+
       //TODO: Tạo invoice, payment entity với phương thức thanh toán
       const invoice = new Invoice();
       invoice.order = order;
@@ -1060,7 +1072,9 @@ export class OrderService {
         message: error.message,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -1139,7 +1153,9 @@ export class OrderService {
         message: error.message,
       };
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 
@@ -1421,7 +1437,9 @@ export class OrderService {
       this.logger.error(error);
       await queryRunner.rollbackTransaction();
     } finally {
-      await queryRunner.release();
+      if (queryRunner) {
+        await queryRunner.release();
+      }
     }
   }
 }
