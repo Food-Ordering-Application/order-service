@@ -1213,19 +1213,6 @@ export class OrderService {
       console.log('from', from);
       console.log('to', to);
 
-      const testOrders = await this.orderRepository
-        .createQueryBuilder('order')
-        .leftJoinAndSelect('order.delivery', 'delivery')
-        .leftJoinAndSelect('order.orderItems', 'ordItems')
-        .skip((page - 1) * size)
-        .take(size)
-        .where('delivery.driverId = :driverId', {
-          driverId: driverId,
-        })
-        .getMany();
-
-      console.log('TestOrders', testOrders);
-
       let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
@@ -1269,8 +1256,6 @@ export class OrderService {
             .getMany();
           break;
       }
-
-      console.log('Orders', orders);
 
       if (!orders || orders.length === 0) {
         return {
