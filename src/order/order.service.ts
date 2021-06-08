@@ -1205,6 +1205,27 @@ export class OrderService {
         };
       }
 
+      console.log('callerId', callerId);
+      console.log('driverId', driverId);
+      console.log('query', query);
+      console.log('page', page);
+      console.log('size', size);
+      console.log('from', from);
+      console.log('to', to);
+
+      const testOrders = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .skip((page - 1) * size)
+        .take(size)
+        .where('delivery.driverId = :driverId', {
+          driverId: driverId,
+        })
+        .getMany();
+
+      console.log('TestOrders', testOrders);
+
       let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
@@ -1249,6 +1270,16 @@ export class OrderService {
           break;
       }
 
+      console.log('Orders', orders);
+
+      if (!orders || orders.length === 0) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'List order not found for that driver',
+          orders: null,
+        };
+      }
+
       const mappedOrders = orders.map((order) => {
         const mappedOrderItems = order.orderItems.map((orderItem) => {
           return {
@@ -1262,14 +1293,6 @@ export class OrderService {
           orderItems: mappedOrderItems,
         };
       });
-
-      if (!orders || orders.length === 0) {
-        return {
-          status: HttpStatus.NOT_FOUND,
-          message: 'List order not found for that driver',
-          orders: null,
-        };
-      }
 
       return {
         status: HttpStatus.OK,
