@@ -24,6 +24,7 @@ import {
   DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
+  RestaurantFinishOrderDto,
   RestaurantVoidOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
@@ -31,6 +32,7 @@ import {
   IDriverCompleteOrderResponse,
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
+  IRestaurantFinishOrderResponse,
   IRestaurantVoidOrderResponse,
 } from './interfaces';
 import { PayPalClient } from './helpers/paypal-refund-helper';
@@ -75,6 +77,16 @@ export class OrderFulfillmentService {
   async sendConfirmOrderEvent(order: Order) {
     this.notificationServiceClient.emit(
       'orderConfirmedByRestaurantEvent',
+      filteredOrder(order, allowed),
+    );
+
+    this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
+    this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
+  }
+
+  async sendOrderReadyEvent(order: Order) {
+    this.notificationServiceClient.emit(
+      'orderReadyEvent',
       filteredOrder(order, allowed),
     );
 
@@ -163,6 +175,45 @@ export class OrderFulfillmentService {
     return {
       status: HttpStatus.OK,
       message: 'Confirm order successfully',
+    };
+  }
+
+  async restaurantFinishOrder(
+    restaurantFinishOrderDto: RestaurantFinishOrderDto,
+  ): Promise<IRestaurantFinishOrderResponse> {
+    const { orderId, restaurantId } = restaurantFinishOrderDto;
+
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .where('order.id = :orderId', {
+        orderId: orderId,
+      })
+      // .andWhere('order.restaurantId = :restaurantId', {
+      //   restaurantId: restaurantId,
+      // })
+      .getOne();
+
+    if (!order) {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Order not found',
+      };
+    }
+
+    if (order?.status != OrdStatus.CONFIRMED) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Order need to be confirmed before finish',
+      };
+    }
+
+    order.status = OrdStatus.READY;
+    await this.orderRepository.save(order);
+    this.sendOrderReadyEvent(order);
+    return {
+      status: HttpStatus.OK,
+      message: 'Update order to be ready successfully',
     };
   }
 

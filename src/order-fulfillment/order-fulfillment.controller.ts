@@ -5,6 +5,7 @@ import {
   DriverCompleteOrderDto,
   DriverPickedUpOrderDto,
   RestaurantConfirmOrderDto,
+  RestaurantFinishOrderDto,
   RestaurantVoidOrderDto,
   UpdateDriverForOrderEventPayload,
 } from './dto';
@@ -12,6 +13,7 @@ import {
   IDriverCompleteOrderResponse,
   IDriverPickedUpOrderResponse,
   IRestaurantConfirmOrderResponse,
+  IRestaurantFinishOrderResponse,
 } from './interfaces';
 import { OrderFulfillmentService } from './order-fulfillment.service';
 
@@ -68,6 +70,16 @@ export class OrderFulfillmentController {
   ): Promise<IRestaurantVoidOrderResponse> {
     return this.orderFulfillmentService.restaurantVoidOrder(
       restaurantVoidOrderDto,
+    );
+  }
+
+  @MessagePattern('restaurantFinishOrder')
+  async restaurantFinishOrder(
+    @Payload()
+    restaurantFinishOrderDto: RestaurantFinishOrderDto,
+  ): Promise<IRestaurantFinishOrderResponse> {
+    return this.orderFulfillmentService.restaurantFinishOrder(
+      restaurantFinishOrderDto,
     );
   }
 }
