@@ -1,4 +1,11 @@
-const allowed = ['id', 'restaurantId', 'status', 'grandTotal','cashierId', 'delivery'];
+const allowed = [
+  'id',
+  'restaurantId',
+  'status',
+  'grandTotal',
+  'cashierId',
+  'delivery',
+];
 
 const filteredOrder = (order: any, allowedKey: Array<string>) =>
   Object.keys(order)

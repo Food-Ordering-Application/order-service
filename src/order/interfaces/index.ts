@@ -14,3 +14,4 @@ export { ICustomerOrder } from './customer-order.interface';
 export { IInvoice } from './invoice.interface';
 export { IPayment } from './payment.interface';
 export { ICustomerOrdersResponse } from './customer-orders-response.interface';
+export { IIsAutoConfirmResponse } from './isautoconfirm-response.interface';

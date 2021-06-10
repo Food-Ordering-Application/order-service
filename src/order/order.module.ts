@@ -4,7 +4,11 @@ import { OrderController } from './order.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { NOTIFICATION_SERVICE } from 'src/constants';
+import {
+  DELIVERY_SERVICE,
+  NOTIFICATION_SERVICE,
+  USER_SERVICE,
+} from 'src/constants';
 import {
   Order,
   OrderItemTopping,
@@ -29,6 +33,53 @@ import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.
       Invoice,
       PaypalPayment,
       CashPayment,
+    ]),
+    ClientsModule.registerAsync([
+      {
+        name: NOTIFICATION_SERVICE,
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.RMQ,
+          options: {
+            urls: [configService.get('AMQP_URL') as string],
+            queue: configService.get('NOTIFICATION_AMQP_QUEUE'),
+            queueOptions: {
+              durable: false,
+            },
+          },
+        }),
+      },
+      {
+        name: DELIVERY_SERVICE,
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.RMQ,
+          options: {
+            urls: [configService.get('AMQP_URL') as string],
+            queue: configService.get('DELIVERY_AMQP_QUEUE'),
+            queueOptions: {
+              durable: false,
+            },
+          },
+        }),
+      },
+      {
+        name: USER_SERVICE,
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.RMQ,
+          options: {
+            urls: [configService.get('AMQP_URL') as string],
+            queue: configService.get('USER_AMQP_QUEUE'),
+            queueOptions: {
+              durable: false,
+            },
+          },
+        }),
+      },
     ]),
   ],
   controllers: [OrderController],

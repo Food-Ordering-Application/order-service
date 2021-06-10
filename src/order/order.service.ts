@@ -1,6 +1,6 @@
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import { Connection, Repository, SelectQueryBuilder } from 'typeorm';
 import {
@@ -45,6 +45,7 @@ import {
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   ICustomerOrdersResponse,
+  IIsAutoConfirmResponse,
   IOrder,
   IOrdersResponse,
   ISaveOrderResponse,
@@ -61,6 +62,13 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
 import * as uniqid from 'uniqid';
+import {
+  DELIVERY_SERVICE,
+  NOTIFICATION_SERVICE,
+  USER_SERVICE,
+} from '../constants';
+import { ClientProxy } from '@nestjs/microservices';
+import { filteredOrder, allowed } from '../shared/filteredOrder';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 
@@ -117,6 +125,12 @@ export class OrderService {
     private invoiceRepository: Repository<Invoice>,
     @InjectConnection()
     private connection: Connection,
+    @Inject(USER_SERVICE)
+    private userServiceClient: ClientProxy,
+    @Inject(DELIVERY_SERVICE)
+    private deliveryServiceClient: ClientProxy,
+    @Inject(NOTIFICATION_SERVICE)
+    private notificationServiceClient: ClientProxy,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -897,6 +911,7 @@ export class OrderService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       //TODO: Lấy thông tin order
+
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
@@ -948,7 +963,10 @@ export class OrderService {
       invoice.status = InvoiceStatus.UNPAID;
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
-      await Promise.all([
+      const values = await Promise.all([
+        this.userServiceClient
+          .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
+          .toPromise(),
         queryRunner.manager.save(Order, order),
         queryRunner.manager.save(Invoice, invoice),
       ]);
@@ -962,7 +980,28 @@ export class OrderService {
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
-          await this.placeOrder(order, queryRunner);
+          const { status, message, isAutoConfirm } = values[0];
+
+          if (status === HttpStatus.NOT_FOUND) {
+            return {
+              status: HttpStatus.NOT_FOUND,
+              message: 'IsAutoConfirm of restaurant not found',
+            };
+          }
+
+          if (isAutoConfirm) {
+            // order.cashierId = cashierId;
+            order.status = OrdStatus.CONFIRMED;
+            order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
+            order.delivery.orderTime = new Date();
+            await Promise.all([
+              queryRunner.manager.save(Order, order),
+              queryRunner.manager.save(Delivery, order.delivery),
+            ]);
+            this.sendConfirmOrderEvent(order);
+          } else {
+            await this.placeOrder(order, queryRunner);
+          }
           await queryRunner.commitTransaction();
           return {
             status: HttpStatus.OK,
@@ -1124,21 +1163,47 @@ export class OrderService {
       //TODO: Save the capture ID to your database.
       queryRunner = this.connection.createQueryRunner();
       await queryRunner.connect();
-      await queryRunner.startTransaction();
+      const values: [IIsAutoConfirmResponse, any] = await Promise.all([
+        this.userServiceClient
+          .send('getIsAutoConfirm', {
+            restaurantId: order.restaurantId,
+          })
+          .toPromise(),
+        queryRunner.startTransaction(),
+      ]);
       const captureID =
         capture.result.purchase_units[0].payments.captures[0].id;
       //TODO: Lưu lại captureId, update order status, payment status.
       order.invoice.payment.paypalPayment.captureId = captureID;
       //TODO: Đổi trạng thái payment sang đang xử lý
       order.invoice.payment.status = PaymentStatus.PROCESSING;
-      await Promise.all([
-        this.placeOrder(order, queryRunner),
-        queryRunner.manager.save(
-          PaypalPayment,
-          order.invoice.payment.paypalPayment,
-        ),
-        queryRunner.manager.save(Payment, order.invoice.payment),
-      ]);
+
+      if (values[0].isAutoConfirm) {
+        // order.cashierId = cashierId;
+        order.status = OrdStatus.CONFIRMED;
+        order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
+        order.delivery.orderTime = new Date();
+        await Promise.all([
+          queryRunner.manager.save(
+            PaypalPayment,
+            order.invoice.payment.paypalPayment,
+          ),
+          queryRunner.manager.save(Payment, order.invoice.payment),
+          queryRunner.manager.save(Order, order),
+          queryRunner.manager.save(Delivery, order.delivery),
+        ]);
+        this.sendConfirmOrderEvent(order);
+      } else {
+        await Promise.all([
+          this.placeOrder(order, queryRunner),
+          queryRunner.manager.save(
+            PaypalPayment,
+            order.invoice.payment.paypalPayment,
+          ),
+          queryRunner.manager.save(Payment, order.invoice.payment),
+        ]);
+      }
+
       await queryRunner.commitTransaction();
 
       return {
@@ -1449,5 +1514,15 @@ export class OrderService {
         await queryRunner.release();
       }
     }
+  }
+
+  async sendConfirmOrderEvent(order: Order) {
+    this.notificationServiceClient.emit(
+      'orderConfirmedByRestaurantEvent',
+      filteredOrder(order, allowed),
+    );
+
+    this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
+    this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
   }
 }
