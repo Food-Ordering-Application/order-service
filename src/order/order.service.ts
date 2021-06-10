@@ -1292,6 +1292,11 @@ export class OrderService {
         const fromDate = new Date(from);
         const toDate = new Date(to);
 
+        console.log('FromDate', fromDate);
+        console.log('ToDate', toDate);
+        console.log('FromDateISO', fromDate.toISOString());
+        console.log('ToDateISO', toDate.toISOString());
+
         orderQueryBuilder = orderQueryBuilder
           .andWhere('order.createdAt >= :startDate', {
             startDate: fromDate.toISOString(),
