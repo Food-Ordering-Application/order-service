@@ -577,8 +577,8 @@ export class OrderService {
       restaurantId,
       query,
       pageNumber,
-      start,
-      end,
+      start: from,
+      end: to,
       orderStatus = null,
     } = getAllRestaurantOrderDto;
 
@@ -599,15 +599,18 @@ export class OrderService {
       );
     }
 
-    if (start && end) {
-      const startDate = new Date(start);
-      const endDate = new Date(end);
+    if (from && to) {
+      const fromDate = momenttimezone
+        .tz(from, 'Asia/Ho_Chi_Minh')
+        .utc()
+        .format();
+      const toDate = momenttimezone.tz(to, 'Asia/Ho_Chi_Minh').utc().format();
       orderQueryBuilder = orderQueryBuilder
         .andWhere('order.createdAt >= :startDate', {
-          startDate: startDate.toISOString(),
+          startDate: fromDate,
         })
         .andWhere('order.createdAt <= :endDate', {
-          endDate: endDate.toISOString(),
+          endDate: toDate,
         });
     }
 
@@ -1498,12 +1501,6 @@ export class OrderService {
   }
 
   async sendConfirmOrderEvent(order: Order) {
-    this.notificationServiceClient.emit(
-      'orderConfirmedByRestaurantEvent',
-      filteredOrder(order, allowed),
-    );
-
-    this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
-    this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
+    this.orderFulfillmentService.sendConfirmOrderEvent(order);
   }
 }
