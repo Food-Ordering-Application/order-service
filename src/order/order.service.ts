@@ -917,6 +917,7 @@ export class OrderService {
             message: 'Forbidden',
           };
         }
+        order.createdAt = new Date();
       }
       //TODO: Nếu đã tạo paypalOrderId rồi
       if (paymentMethod === PaymentMethod.PAYPAL) {
