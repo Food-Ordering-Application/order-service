@@ -106,7 +106,7 @@ export class OrderFulfillmentService {
       'orderHasBeenAssignedToDriverEvent',
       filteredOrder(order, allowed),
     );
-    this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', order);
+    this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', { order });
     this.logger.log(order, 'noti: orderHasBeenAssignedToDriverEvent');
   }
 
@@ -123,7 +123,7 @@ export class OrderFulfillmentService {
       'orderHasBeenCompletedEvent',
       filteredOrder(order, allowed),
     );
-    this.userServiceClient.emit('orderHasBeenCompletedEvent', order);
+    this.userServiceClient.emit('orderHasBeenCompletedEvent', { order });
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
