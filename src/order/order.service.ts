@@ -1414,7 +1414,7 @@ export class OrderService {
   ): Promise<ICustomerOrdersResponse> {
     return this.getOrdersOfCustomer(
       getOrdersOfCustomerDto,
-      [OrdStatus.ORDERED, OrdStatus.CONFIRMED],
+      [OrdStatus.ORDERED, OrdStatus.CONFIRMED, OrdStatus.READY],
       false,
     );
   }
