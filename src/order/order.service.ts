@@ -959,15 +959,18 @@ export class OrderService {
       switch (paymentMethod) {
         case PaymentMethod.COD:
           const { status, message, isAutoConfirm } = values[0];
+          const isMerchantNotAvailable =
+            status === HttpStatus.NOT_FOUND ||
+            isAutoConfirm === undefined ||
+            isAutoConfirm === null;
+          // if (status === HttpStatus.NOT_FOUND) {
+          //   return {
+          //     status: HttpStatus.NOT_FOUND,
+          //     message: 'IsAutoConfirm of restaurant not found',
+          //   };
+          // }
 
-          if (status === HttpStatus.NOT_FOUND) {
-            return {
-              status: HttpStatus.NOT_FOUND,
-              message: 'IsAutoConfirm of restaurant not found',
-            };
-          }
-
-          if (isAutoConfirm) {
+          if (isAutoConfirm || isMerchantNotAvailable) {
             await this.handleAutoConfirmOrder(order, queryRunner);
           } else {
             await this.placeOrder(order, queryRunner);
