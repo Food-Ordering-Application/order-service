@@ -2,7 +2,12 @@ import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillmen
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
-import { Connection, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+  Connection,
+  QueryRunner,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -57,6 +62,8 @@ import {
   findOrderItem,
   findOrderItemIndex,
   calculateShippingFee,
+  calculateExpectedDeliveryTime,
+  getPreparationTime,
 } from './helpers/order-logic.helper';
 import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
@@ -859,18 +866,12 @@ export class OrderService {
     order.delivery.shippingFee = shippingFee;
     order.delivery.distance = Math.floor(distance);
     // calculate expected delivery time
-    const AVG_TIME_PER_1KM = 10;
-    const calculateEAT = (
-      restaurantPreparationTime: number,
-      deliveryDistance: number,
-    ) =>
-      restaurantPreparationTime + (deliveryDistance / 1000) * AVG_TIME_PER_1KM;
-    const getPreparationTime = (order: Order) => 12;
-
     const preparationTime = getPreparationTime(order);
-    const EAT = calculateEAT(preparationTime, distance);
-    const expectedDeliveryTime = new Date(Date.now() + EAT * 1000 * 60);
-    order.delivery.expectedDeliveryTime = expectedDeliveryTime;
+    order.delivery.expectedDeliveryTime = calculateExpectedDeliveryTime(
+      new Date(),
+      preparationTime,
+      distance,
+    );
 
     order.grandTotal = calculateOrderGrandToTal(order);
   }
@@ -965,15 +966,7 @@ export class OrderService {
           }
 
           if (isAutoConfirm) {
-            // order.cashierId = cashierId;
-            order.status = OrdStatus.CONFIRMED;
-            order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
-            order.delivery.orderTime = new Date();
-            await Promise.all([
-              queryRunner.manager.save(Order, order),
-              queryRunner.manager.save(Delivery, order.delivery),
-            ]);
-            this.sendConfirmOrderEvent(order);
+            await this.handleAutoConfirmOrder(order, queryRunner);
           } else {
             await this.placeOrder(order, queryRunner);
           }
@@ -1155,19 +1148,14 @@ export class OrderService {
 
       if (values[0].isAutoConfirm) {
         // order.cashierId = cashierId;
-        order.status = OrdStatus.CONFIRMED;
-        order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
-        order.delivery.orderTime = new Date();
         await Promise.all([
           queryRunner.manager.save(
             PaypalPayment,
             order.invoice.payment.paypalPayment,
           ),
           queryRunner.manager.save(Payment, order.invoice.payment),
-          queryRunner.manager.save(Order, order),
-          queryRunner.manager.save(Delivery, order.delivery),
+          this.handleAutoConfirmOrder(order, queryRunner),
         ]);
-        this.sendConfirmOrderEvent(order);
       } else {
         await Promise.all([
           this.placeOrder(order, queryRunner),
@@ -1216,6 +1204,15 @@ export class OrderService {
   async placeOrder(order: Order, queryRunner) {
     order.status = OrdStatus.ORDERED;
     order.delivery.orderTime = new Date();
+    // calculate expected delivery time
+
+    const preparationTime = getPreparationTime(order);
+    order.delivery.expectedDeliveryTime = calculateExpectedDeliveryTime(
+      order.delivery.orderTime,
+      preparationTime,
+      order.delivery.distance,
+    );
+
     await Promise.all([
       queryRunner.manager.save(Order, order),
       queryRunner.manager.save(Delivery, order.delivery),
@@ -1500,7 +1497,22 @@ export class OrderService {
     }
   }
 
-  async sendConfirmOrderEvent(order: Order) {
+  async handleAutoConfirmOrder(order: Order, queryRunner: QueryRunner) {
+    order.status = OrdStatus.CONFIRMED;
+    order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
+    order.delivery.orderTime = new Date();
+
+    const preparationTime = getPreparationTime(order);
+    order.delivery.expectedDeliveryTime = calculateExpectedDeliveryTime(
+      order.delivery.orderTime,
+      preparationTime,
+      order.delivery.distance,
+    );
+
+    await Promise.all([
+      queryRunner.manager.save(Order, order),
+      queryRunner.manager.save(Delivery, order.delivery),
+    ]);
     this.orderFulfillmentService.sendConfirmOrderEvent(order);
   }
 }

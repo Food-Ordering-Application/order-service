@@ -200,3 +200,28 @@ export const calculateShippingFee = (
   }
   return { shippingFee, distance };
 };
+
+export const calculateExpectedDeliveryTime = (
+  orderTime: Date,
+  restaurantPreparationTime: number,
+  deliveryDistance: number,
+) => {
+  const MIN_DELIVERY_TIME = 30;
+  // thoi gian giao hang du kien =
+  // max(thoi gian chuan bi, thoi gian shipper toi cua hang) +
+  const pickUpTime = restaurantPreparationTime;
+  // thoi gian di chuyen cua shipper (average_time_per_1km * distance)
+  const AVG_TIME_PER_1KM = 10;
+  const deliveryTime = (deliveryDistance / 1000) * AVG_TIME_PER_1KM;
+
+  const totalDeliveryTime = Math.max(
+    pickUpTime + deliveryTime,
+    MIN_DELIVERY_TIME,
+  );
+  const expectedDeliveryTime = new Date(
+    orderTime.getTime() + totalDeliveryTime * 1000 * 60,
+  );
+  return expectedDeliveryTime;
+};
+
+export const getPreparationTime = (order: Order) => 15;
