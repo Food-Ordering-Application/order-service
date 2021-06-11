@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Payment } from './payment.entity';
 
@@ -15,12 +16,15 @@ export class PaypalPayment {
   id: string;
 
   @Column({ nullable: true })
+  @Index()
   captureId: string;
 
   @Column({ nullable: true })
+  @Index()
   refundId: string;
 
   @Column()
+  @Index()
   paypalOrderId: string;
 
   @CreateDateColumn()

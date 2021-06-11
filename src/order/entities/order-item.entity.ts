@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Order, OrderItemTopping } from './';
 import { State } from '../enums';
@@ -14,11 +15,13 @@ export class OrderItem {
   id: string;
 
   @Column()
+  @Index()
   menuItemId: string;
 
   @ManyToOne(() => Order, (order) => order.orderItems)
   order: Order;
   @Column({ nullable: true })
+  @Index()
   orderId: string;
 
   @Column()

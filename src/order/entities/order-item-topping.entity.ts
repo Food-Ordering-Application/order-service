@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  Index,
+} from 'typeorm';
 import { State } from '../enums';
 import { OrderItem } from './order-item.entity';
 
@@ -8,6 +14,7 @@ export class OrderItemTopping {
   id: string;
 
   @Column()
+  @Index()
   toppingItemId: string;
 
   @Column()
@@ -24,4 +31,8 @@ export class OrderItemTopping {
 
   @ManyToOne(() => OrderItem, (orderItem) => orderItem.orderItemToppings)
   orderItem: OrderItem;
+
+  @Column({ nullable: true })
+  @Index()
+  orderItemId: string;
 }

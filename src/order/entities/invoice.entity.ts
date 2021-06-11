@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { InvoiceStatus } from '../enums';
 import { Payment } from './index';
@@ -22,6 +23,7 @@ export class Invoice {
   status: string;
 
   @Column({ nullable: true })
+  @Index()
   paypalInvoiceId: string;
 
   @Column({ nullable: true })

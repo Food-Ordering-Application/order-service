@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { DeliveryStatus } from '../enums';
 import { Order } from './order.entity';
@@ -17,9 +18,11 @@ export class Delivery {
   id: string;
 
   @Column({ nullable: true })
+  @Index()
   customerId: string;
 
   @Column({ nullable: true })
+  @Index()
   driverId: string;
 
   @Column({ nullable: true })
@@ -57,6 +60,9 @@ export class Delivery {
   restaurantGeom: { type: string; coordinates: number[] };
 
   @Column({ nullable: true })
+  totalDeliveryDistance: number;
+
+  @Column({ nullable: true })
   distance: number;
 
   @Column({ nullable: true })
@@ -78,9 +84,11 @@ export class Delivery {
   updatedAt: Date;
 
   @Column({ nullable: true })
+  @Index()
   orderTime: Date;
 
   @Column({ nullable: true })
+  @Index()
   deliveredAt: Date;
 
   @Column({ nullable: true })

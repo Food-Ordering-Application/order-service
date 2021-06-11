@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  Index,
 } from 'typeorm';
 import { OrdStatus } from '../enums';
 import { Delivery, OrderItem } from './index';
@@ -20,6 +21,7 @@ export class Order {
   cashierId: string;
 
   @Column({ nullable: true })
+  @Index()
   restaurantId: string;
 
   @Column({ nullable: true })
@@ -38,12 +40,15 @@ export class Order {
   note: string;
 
   @CreateDateColumn()
+  @Index()
   createdAt: Date;
 
   @UpdateDateColumn()
+  @Index()
   updatedAt: Date;
 
   @Column({ enum: OrdStatus })
+  @Index()
   status: string;
 
   //? Relations
