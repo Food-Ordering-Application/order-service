@@ -90,8 +90,7 @@ export class OrderFulfillmentService {
       filteredOrder(order, allowed),
     );
 
-    this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
-    this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
+    this.logger.log(order.id, 'noti: orderReadyEvent');
   }
 
   async sendCancelOrderEvent(order: Order) {
