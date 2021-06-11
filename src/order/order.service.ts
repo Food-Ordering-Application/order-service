@@ -14,6 +14,7 @@ import {
   ConfirmOrderCheckoutDto,
   EventPaypalOrderOccurDto,
   GetAllRestaurantOrderDto,
+  GetLastDraftOrderOfCustomerDto,
   GetListOrderOfDriverDto,
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
@@ -1443,6 +1444,17 @@ export class OrderService {
   ): Promise<ICustomerOrdersResponse> {
     return this.getOrdersOfCustomer(
       getOrdersOfCustomerDto,
+      [OrdStatus.DRAFT],
+      true,
+    );
+  }
+
+  async getLastDraftOrderOfCustomer(
+    getLastDraftOrderOfCustomerDto: GetLastDraftOrderOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    const { customerId } = getLastDraftOrderOfCustomerDto;
+    return this.getOrdersOfCustomer(
+      { limit: 1, offset: 0, customerId },
       [OrdStatus.DRAFT],
       true,
     );

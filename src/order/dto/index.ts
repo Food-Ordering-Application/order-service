@@ -23,3 +23,4 @@ export { GetOrdersOfCustomerDto } from './get-orders-of-customer.dto';
 export { GetOrderHistoryOfCustomerDto } from './get-order-history-of-customer.dto';
 export { PaypalResource } from './paypal-order-resource.dto';
 export { EventPaypalOrderOccurDto } from './event-paypal-order-occur.dto';
+export { GetLastDraftOrderOfCustomerDto } from './get-last-draft-order-of-customer.dto';

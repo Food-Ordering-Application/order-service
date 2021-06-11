@@ -19,6 +19,7 @@ import {
   GetOrdersOfCustomerDto,
   GetOrderHistoryOfCustomerDto,
   EventPaypalOrderOccurDto,
+  GetLastDraftOrderOfCustomerDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -178,6 +179,16 @@ export class OrderController {
     getOrdersOfCustomerDto: GetOrdersOfCustomerDto,
   ): Promise<ICustomerOrdersResponse> {
     return this.orderService.getDraftOrdersOfCustomer(getOrdersOfCustomerDto);
+  }
+
+  @MessagePattern('getLastDraftOrderOfCustomer')
+  async getLastDraftOrderOfCustomer(
+    @Payload()
+    getLastDraftOrderOfCustomerDto: GetLastDraftOrderOfCustomerDto,
+  ): Promise<ICustomerOrdersResponse> {
+    return this.orderService.getLastDraftOrderOfCustomer(
+      getLastDraftOrderOfCustomerDto,
+    );
   }
 
   @EventPattern('eventPaypalOrderOccur')
