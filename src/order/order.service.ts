@@ -589,58 +589,68 @@ export class OrderService {
       end: to,
       orderStatus = null,
     } = getAllRestaurantOrderDto;
-
-    let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
-      .createQueryBuilder('order')
-      .leftJoinAndSelect('order.delivery', 'delivery')
-      .leftJoinAndSelect('order.orderItems', 'ordItems')
-      .where('order.restaurantId = :restaurantId', {
-        restaurantId: restaurantId,
-      });
-
-    if (orderStatus) {
-      orderQueryBuilder = orderQueryBuilder.andWhere(
-        'order.status = :orderStatus',
-        {
-          orderStatus: orderStatus,
-        },
-      );
-    }
-
-    if (from && to) {
-      const fromDate = momenttimezone
-        .tz(from, 'Asia/Ho_Chi_Minh')
-        .utc()
-        .format();
-      const toDate = momenttimezone.tz(to, 'Asia/Ho_Chi_Minh').utc().format();
-      orderQueryBuilder = orderQueryBuilder
-        .andWhere('order.createdAt >= :startDate', {
-          startDate: fromDate,
-        })
-        .andWhere('order.createdAt <= :endDate', {
-          endDate: toDate,
+    try {
+      let orderQueryBuilder: SelectQueryBuilder<Order> = this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.orderItems', 'ordItems')
+        .where('order.restaurantId = :restaurantId', {
+          restaurantId: restaurantId,
         });
+
+      if (orderStatus) {
+        orderQueryBuilder = orderQueryBuilder.andWhere(
+          'order.status = :orderStatus',
+          {
+            orderStatus: orderStatus,
+          },
+        );
+      }
+
+      if (from && to) {
+        const fromDate = momenttimezone
+          .tz(from, 'Asia/Ho_Chi_Minh')
+          .utc()
+          .format();
+        const toDate = momenttimezone.tz(to, 'Asia/Ho_Chi_Minh').utc().format();
+        orderQueryBuilder = orderQueryBuilder
+          .andWhere('order.createdAt >= :startDate', {
+            startDate: fromDate,
+          })
+          .andWhere('order.createdAt <= :endDate', {
+            endDate: toDate,
+          });
+      }
+
+      if (query === GetRestaurantOrder.POS) {
+        orderQueryBuilder = orderQueryBuilder.andWhere('delivery.id IS NULL');
+      }
+
+      if (query === GetRestaurantOrder.SALE) {
+        orderQueryBuilder = orderQueryBuilder.andWhere(
+          'delivery.id IS NOT NULL',
+        );
+      }
+
+      const orders = await orderQueryBuilder
+        .skip((pageNumber - 1) * 25)
+        .take(25)
+        .select(['order', 'ordItems.id', 'ordItems.quantity', 'delivery'])
+        .getMany();
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of restaurant successfully',
+        orders: orders,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        orders: null,
+      };
     }
-
-    if (query === GetRestaurantOrder.POS) {
-      orderQueryBuilder = orderQueryBuilder.andWhere('delivery.id IS NULL');
-    }
-
-    if (query === GetRestaurantOrder.SALE) {
-      orderQueryBuilder = orderQueryBuilder.andWhere('delivery.id IS NOT NULL');
-    }
-
-    const orders = await orderQueryBuilder
-      .skip((pageNumber - 1) * 25)
-      .take(25)
-      .select(['order', 'ordItems.id', 'ordItems.quantity', 'delivery'])
-      .getMany();
-
-    return {
-      status: HttpStatus.OK,
-      message: 'Fetch orders of restaurant successfully',
-      orders: orders,
-    };
   }
 
   async getOrderDetail(
