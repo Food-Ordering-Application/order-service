@@ -70,7 +70,7 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import { client } from '../config/paypal';
 import axios from 'axios';
 import * as uniqid from 'uniqid';
-import momenttimezone from 'moment-timezone';
+import * as momenttimezone from 'moment-timezone';
 import {
   DELIVERY_SERVICE,
   NOTIFICATION_SERVICE,
