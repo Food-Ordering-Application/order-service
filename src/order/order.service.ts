@@ -964,26 +964,25 @@ export class OrderService {
       payment.status = PaymentStatus.PENDING_USER_ACTION;
       payment.method = paymentMethod;
       await queryRunner.manager.save(Payment, payment);
+      console.log('BEFORE SWITCH');
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
+          console.log('BEGIN COD');
           const { status, message, isAutoConfirm } = values[0];
           const isMerchantNotAvailable =
             status === HttpStatus.NOT_FOUND ||
             isAutoConfirm === undefined ||
             isAutoConfirm === null;
-          // if (status === HttpStatus.NOT_FOUND) {
-          //   return {
-          //     status: HttpStatus.NOT_FOUND,
-          //     message: 'IsAutoConfirm of restaurant not found',
-          //   };
-          // }
 
+          console.log('isAutoConfirm', isAutoConfirm);
+          console.log('isMerchantNotAvailable', isMerchantNotAvailable);
           if (isAutoConfirm || isMerchantNotAvailable) {
             await this.handleAutoConfirmOrder(order, queryRunner);
           } else {
             await this.placeOrder(order, queryRunner);
           }
+          console.log('COD OK');
           await queryRunner.commitTransaction();
           return {
             status: HttpStatus.OK,
