@@ -106,7 +106,12 @@ export class OrderFulfillmentService {
       'orderHasBeenAssignedToDriverEvent',
       filteredOrder(order, allowed),
     );
-    this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', { order });
+    this.userServiceClient.emit('orderHasBeenAssignedToDriverEvent', {
+      driverId: order.delivery.driverId,
+      paymentMethod: order.invoice.payment.method,
+      shippingFee: order.delivery.shippingFee,
+      orderSubtotal: order.subTotal,
+    });
     this.logger.log(order, 'noti: orderHasBeenAssignedToDriverEvent');
   }
 
