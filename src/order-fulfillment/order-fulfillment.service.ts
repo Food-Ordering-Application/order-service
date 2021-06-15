@@ -123,6 +123,7 @@ export class OrderFulfillmentService {
       'orderHasBeenCompletedEvent',
       filteredOrder(order, allowed),
     );
+    console.log('SEND orderHasBeenCompletedEvent');
     this.userServiceClient.emit('orderHasBeenCompletedEvent', { order });
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
@@ -553,6 +554,7 @@ export class OrderFulfillmentService {
     console.dir(order, { depth: 3 });
 
     this.sendDriverCompleteOrderEvent(order);
+
     return {
       status: HttpStatus.OK,
       message: 'Confirm complete order successfully',

@@ -77,7 +77,6 @@ import {
   USER_SERVICE,
 } from '../constants';
 import { ClientProxy } from '@nestjs/microservices';
-import { filteredOrder, allowed } from '../shared/filteredOrder';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 
