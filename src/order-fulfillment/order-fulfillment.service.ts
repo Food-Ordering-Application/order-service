@@ -124,7 +124,15 @@ export class OrderFulfillmentService {
       filteredOrder(order, allowed),
     );
     console.log('SEND orderHasBeenCompletedEvent');
-    this.userServiceClient.emit('orderHasBeenCompletedEvent', { order });
+    this.userServiceClient.emit('orderHasBeenCompletedEvent', {
+      paymentMethod: order.invoice.payment.method,
+      orderGrandTotal: order.grandTotal,
+      driverId: order.delivery.driverId,
+      orderId: order.id,
+      deliveryId: order.delivery.id,
+      shippingFee: order.delivery.shippingFee,
+      deliveryDistance: order.delivery.distance,
+    });
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
