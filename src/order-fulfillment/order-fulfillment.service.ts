@@ -133,6 +133,7 @@ export class OrderFulfillmentService {
       shippingFee: order.delivery.shippingFee,
       deliveryDistance: order.delivery.distance,
     });
+    console.log('SENT OK');
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
