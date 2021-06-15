@@ -891,6 +891,7 @@ export class OrderService {
   ): Promise<IConfirmOrderCheckoutResponse> {
     let queryRunner;
     try {
+      console.log('CONFIRM ORDER CHECKOUT FUNCTION');
       const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
         confirmOrderCheckoutDto;
       queryRunner = this.connection.createQueryRunner();
@@ -950,6 +951,7 @@ export class OrderService {
       invoice.status = InvoiceStatus.UNPAID;
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
+      console.log('getting is autoconfirm');
       const values = await Promise.all([
         this.userServiceClient
           .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
@@ -957,7 +959,8 @@ export class OrderService {
         queryRunner.manager.save(Order, order),
         queryRunner.manager.save(Invoice, invoice),
       ]);
-
+      console.log('get is autoconfirm ok');
+      console.log('values', values[0].isAutoConfirm);
       const payment = new Payment();
       payment.amount = calculateOrderGrandToTal(order);
       payment.invoice = invoice;
