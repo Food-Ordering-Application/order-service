@@ -124,6 +124,10 @@ export class OrderFulfillmentService {
       filteredOrder(order, allowed),
     );
     this.userServiceClient.emit('orderHasBeenCompletedEvent', { order });
+    this.deliveryServiceClient.emit(
+      'orderHasBeenCompletedEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
