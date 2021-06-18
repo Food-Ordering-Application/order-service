@@ -139,6 +139,10 @@ export class OrderFulfillmentService {
       deliveryDistance: order.delivery.distance,
     });
     console.log('SENT OK');
+    this.deliveryServiceClient.emit(
+      'orderHasBeenCompletedEvent',
+      filteredOrder(order, allowed),
+    );
     this.logger.log(order.id, 'noti: orderHasBeenCompletedEvent');
   }
 
@@ -154,12 +158,25 @@ export class OrderFulfillmentService {
     const order = await this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
       .where('order.id = :orderId', {
         orderId: orderId,
       })
       // .andWhere('order.restaurantId = :restaurantId', {
       //   restaurantId: restaurantId,
       // })
+      .select([
+        'order.id',
+        'order.restaurantId',
+        'order.cashierId',
+        'order.status',
+        'order.subTotal',
+        'order.grandTotal',
+        'delivery',
+        'invoice.id',
+        'payment.method',
+      ])
       .getOne();
 
     if (!order) {
