@@ -128,7 +128,7 @@ export class OrderFulfillmentService {
       'orderHasBeenCompletedEvent',
       filteredOrder(order, allowed),
     );
-    console.log('SEND orderHasBeenCompletedEvent');
+
     this.userServiceClient.emit('orderHasBeenCompletedEvent', {
       paymentMethod: order.invoice.payment.method,
       orderGrandTotal: order.grandTotal,
@@ -138,7 +138,7 @@ export class OrderFulfillmentService {
       shippingFee: order.delivery.shippingFee,
       deliveryDistance: order.delivery.distance,
     });
-    console.log('SENT OK');
+
     this.deliveryServiceClient.emit(
       'orderHasBeenCompletedEvent',
       filteredOrder(order, allowed),

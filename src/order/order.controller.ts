@@ -28,8 +28,10 @@ import {
   IConfirmOrderCheckoutResponse,
   IApprovePaypalOrder,
   ICustomerOrdersResponse,
+  IRestaurantStatisticResponse,
 } from './interfaces';
 import { EventPattern } from '@nestjs/microservices';
+import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
 
 @Controller()
 export class OrderController {
@@ -197,5 +199,14 @@ export class OrderController {
     eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
   ) {
     this.orderService.eventPaypalOrderOccur(eventPaypalOrderOccurDto);
+  }
+
+  //! Thống kê order restaurant
+  @MessagePattern('getRestaurantStatistic')
+  async getRestaurantStatistic(
+    @Payload()
+    getRestaurantStatisticDto: GetRestaurantStatisticDto,
+  ): Promise<IRestaurantStatisticResponse> {
+    return this.orderService.getRestaurantStatistic(getRestaurantStatisticDto);
   }
 }

@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   DELIVERY_SERVICE,
   NOTIFICATION_SERVICE,
+  RESTAURANT_SERVICE,
   USER_SERVICE,
 } from 'src/constants';
 import {
@@ -20,6 +21,7 @@ import {
   CashPayment,
 } from './entities';
 import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.module';
+import { DeliveryLocation } from './entities/delivery-location.entity';
 
 @Module({
   imports: [
@@ -33,6 +35,7 @@ import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.
       Invoice,
       PaypalPayment,
       CashPayment,
+      DeliveryLocation,
     ]),
     ClientsModule.registerAsync([
       {
@@ -74,6 +77,21 @@ import { OrderFulfillmentModule } from 'src/order-fulfillment/order-fulfillment.
           options: {
             urls: [configService.get('AMQP_URL') as string],
             queue: configService.get('USER_AMQP_QUEUE'),
+            queueOptions: {
+              durable: false,
+            },
+          },
+        }),
+      },
+      {
+        name: RESTAURANT_SERVICE,
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.RMQ,
+          options: {
+            urls: [configService.get('AMQP_URL') as string],
+            queue: configService.get('RESTAURANT_AMQP_QUEUE'),
             queueOptions: {
               durable: false,
             },

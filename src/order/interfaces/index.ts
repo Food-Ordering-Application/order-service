@@ -15,3 +15,5 @@ export { IInvoice } from './invoice.interface';
 export { IPayment } from './payment.interface';
 export { ICustomerOrdersResponse } from './customer-orders-response.interface';
 export { IIsAutoConfirmResponse } from './isautoconfirm-response.interface';
+export { IRestaurantStatisticResponse } from './get-restaurant-statistic-response.interface';
+export { ICityAreaData } from './city-area-data.interface';

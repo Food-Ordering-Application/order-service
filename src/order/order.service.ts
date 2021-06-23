@@ -48,12 +48,14 @@ import {
 } from './enums';
 import {
   IApprovePaypalOrder,
+  ICityAreaData,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   ICustomerOrdersResponse,
   IIsAutoConfirmResponse,
   IOrder,
   IOrdersResponse,
+  IRestaurantStatisticResponse,
   ISaveOrderResponse,
 } from './interfaces';
 import { createAndStoreOrderItem } from './helpers';
@@ -71,12 +73,16 @@ import { client } from '../config/paypal';
 import axios from 'axios';
 import * as uniqid from 'uniqid';
 import * as momenttimezone from 'moment-timezone';
+import * as moment from 'moment';
 import {
   DELIVERY_SERVICE,
   NOTIFICATION_SERVICE,
   USER_SERVICE,
+  RESTAURANT_SERVICE,
 } from '../constants';
 import { ClientProxy } from '@nestjs/microservices';
+import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
+import { DeliveryLocation } from './entities/delivery-location.entity';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 
@@ -100,14 +106,14 @@ export class OrderService {
     private paypalPaymentRepository: Repository<PaypalPayment>,
     @InjectRepository(CashPayment)
     private cashPaymentRepository: Repository<CashPayment>,
-    @InjectRepository(Invoice)
-    private invoiceRepository: Repository<Invoice>,
+    @InjectRepository(DeliveryLocation)
+    private deliveryLocationRepository: Repository<DeliveryLocation>,
     @InjectConnection()
     private connection: Connection,
     @Inject(USER_SERVICE)
     private userServiceClient: ClientProxy,
-    @Inject(DELIVERY_SERVICE)
-    private deliveryServiceClient: ClientProxy,
+    @Inject(RESTAURANT_SERVICE)
+    private restaurantServiceClient: ClientProxy,
     @Inject(NOTIFICATION_SERVICE)
     private notificationServiceClient: ClientProxy,
   ) {}
@@ -132,6 +138,7 @@ export class OrderService {
         customerName = null,
         customerPhoneNumber = null,
       } = customer || {};
+
       // TODO: make this a transaction
       queryRunner = this.connection.createQueryRunner();
       await queryRunner.connect();
@@ -946,6 +953,7 @@ export class OrderService {
       }
 
       //TODO: Tạo invoice, payment entity với phương thức thanh toán
+      //TODO: Lấy thông tin city và area nơi người dùng đặt
       const invoice = new Invoice();
       invoice.order = order;
       invoice.status = InvoiceStatus.UNPAID;
@@ -958,21 +966,46 @@ export class OrderService {
           .toPromise(),
         queryRunner.manager.save(Order, order),
         queryRunner.manager.save(Invoice, invoice),
+        this.restaurantServiceClient
+          .send('getCityFromLocation', {
+            position: {
+              latitude: order.delivery.customerGeom.coordinates[1],
+              longitude: order.delivery.customerGeom.coordinates[0],
+            },
+          })
+          .toPromise(),
       ]);
       console.log('get is autoconfirm ok');
       console.log('values', values[0].isAutoConfirm);
+      //TODO: Tạo và lưu DeliveryLocation
+      if (!values[3].data.city) {
+        throw new Error(
+          'Cannot find city and area information from customer lat and long',
+        );
+      }
+      const deliveryLocation = new DeliveryLocation();
+      deliveryLocation.cityId = values[3].data.city.id;
+      deliveryLocation.cityName = values[3].data.city.name;
+      deliveryLocation.areaId = values[3].data.city.districts[0].id;
+      deliveryLocation.areaName = values[3].data.city.districts[0].name;
+      deliveryLocation.order = order;
+
+      //TODO: Tạo và lưu Payment
       const payment = new Payment();
       payment.amount = calculateOrderGrandToTal(order);
       payment.invoice = invoice;
       payment.status = PaymentStatus.PENDING_USER_ACTION;
       payment.method = paymentMethod;
-      await queryRunner.manager.save(Payment, payment);
+      await Promise.all([
+        queryRunner.manager.save(Payment, payment),
+        queryRunner.manager.save(DeliveryLocation, deliveryLocation),
+      ]);
       console.log('BEFORE SWITCH');
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
           console.log('BEGIN COD');
-          const { status, message, isAutoConfirm } = values[0];
+          const { status, isAutoConfirm } = values[0];
           const isMerchantNotAvailable =
             status === HttpStatus.NOT_FOUND ||
             isAutoConfirm === undefined ||
@@ -1541,5 +1574,86 @@ export class OrderService {
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
     this.orderFulfillmentService.sendConfirmOrderEvent(order);
+  }
+
+  async getRestaurantStatistic(
+    getRestaurantStatisticDto: GetRestaurantStatisticDto,
+  ): Promise<IRestaurantStatisticResponse> {
+    try {
+      const { merchantId, restaurantId } = getRestaurantStatisticDto;
+
+      const aMonthAgoUTC = moment().subtract(30, 'day').utc().toISOString();
+
+      console.log('aMonthAgoUTC', aMonthAgoUTC);
+
+      const data: ICityAreaData[] = await this.deliveryLocationRepository
+        .createQueryBuilder('deliveryL')
+        .select([
+          'deliveryL.areaId',
+          'deliveryL.areaName',
+          'deliveryL.cityName',
+          'deliveryL.cityId',
+        ])
+        .addSelect('COUNT(order.id) AS numOrders')
+        .leftJoin('deliveryL.order', 'order')
+        .where('order.status = :orderCompletedStatus', {
+          orderCompletedStatus: OrdStatus.COMPLETED,
+        })
+        .andWhere('order.restaurantId = :restaurantId', {
+          restaurantId: restaurantId,
+        })
+        .andWhere('order.createdAt >= :aMonthAgoUTC', {
+          aMonthAgoUTC: aMonthAgoUTC,
+        })
+        .groupBy('deliveryL.areaId')
+        .addGroupBy('deliveryL.cityId')
+        .getRawMany();
+
+      if (!data || data.length === 0) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Cannot found any statistic',
+        };
+      }
+
+      console.log('data', data);
+
+      /* 
+      [
+        { 
+          cityId:5, 
+          areaId:1,
+          cityName:'TPHCM', 
+          areaName:'Quan 1',
+          numOrders:5
+        },
+        { 
+          cityId:5, 
+          areaId:2,
+          cityName:'TPHCM', 
+          areaName:'Quan 2',
+          numOrders:6
+        },
+        { 
+          cityId:5, 
+          areaId:3,
+          cityName:'TPHCM',
+          areaName:'Quan 3',
+          numOrders:7
+        },
+      ]
+      */
+      return {
+        status: HttpStatus.OK,
+        message: 'Statistic calculated',
+        statistic: data,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      };
+    }
   }
 }

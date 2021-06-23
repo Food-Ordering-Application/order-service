@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { OrdStatus } from '../enums';
+import { DeliveryLocation } from './delivery-location.entity';
 import { Delivery, OrderItem } from './index';
 import { Invoice } from './invoice.entity';
 
@@ -59,6 +60,12 @@ export class Order {
 
   @OneToOne(() => Delivery, (delivery) => delivery.order) // specify inverse side as a second parameter
   delivery: Delivery;
+
+  @OneToOne(
+    () => DeliveryLocation,
+    (deliveryLocation) => deliveryLocation.order,
+  )
+  deliveryLocation: DeliveryLocation;
 
   @OneToOne(() => Invoice, (invoice) => invoice.order)
   invoice: Invoice;
