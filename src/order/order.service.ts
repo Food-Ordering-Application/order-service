@@ -1,13 +1,23 @@
-import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
-import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
+import * as paypal from '@paypal/checkout-server-sdk';
+import axios from 'axios';
+import * as momenttimezone from 'moment-timezone';
 import {
   Connection,
   QueryRunner,
   Repository,
   SelectQueryBuilder,
 } from 'typeorm';
+import * as uniqid from 'uniqid';
+import { client } from '../config/paypal';
+import {
+  DELIVERY_SERVICE,
+  NOTIFICATION_SERVICE,
+  USER_SERVICE,
+} from '../constants';
+import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -23,10 +33,12 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  RestaurantOrderStatisticsDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import {
   CashPayment,
   Delivery,
@@ -38,14 +50,25 @@ import {
   PaypalPayment,
 } from './entities';
 import {
-  OrdStatus,
   DeliveryStatus,
+  EDriverOrderType,
   GetRestaurantOrder,
+  InvoiceStatus,
+  OrdStatus,
   PaymentMethod,
   PaymentStatus,
-  InvoiceStatus,
-  EDriverOrderType,
 } from './enums';
+import { createAndStoreOrderItem } from './helpers';
+import {
+  calculateExpectedDeliveryTime,
+  calculateOrderGrandToTal,
+  calculateOrderSubTotal,
+  calculateShippingFee,
+  findOrderItem,
+  findOrderItemIndex,
+  getPreparationTime,
+} from './helpers/order-logic.helper';
+import { getOrderStatisticsQuery } from './helpers/query-builder';
 import {
   IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
@@ -56,27 +79,6 @@ import {
   IOrdersResponse,
   ISaveOrderResponse,
 } from './interfaces';
-import { createAndStoreOrderItem } from './helpers';
-import {
-  calculateOrderSubTotal,
-  calculateOrderGrandToTal,
-  findOrderItem,
-  findOrderItemIndex,
-  calculateShippingFee,
-  calculateExpectedDeliveryTime,
-  getPreparationTime,
-} from './helpers/order-logic.helper';
-import * as paypal from '@paypal/checkout-server-sdk';
-import { client } from '../config/paypal';
-import axios from 'axios';
-import * as uniqid from 'uniqid';
-import * as momenttimezone from 'moment-timezone';
-import {
-  DELIVERY_SERVICE,
-  NOTIFICATION_SERVICE,
-  USER_SERVICE,
-} from '../constants';
-import { ClientProxy } from '@nestjs/microservices';
 const DEFAULT_EXCHANGE_RATE = 0.00004;
 const PERCENT_PLATFORM_FEE = 0.2;
 
@@ -1541,5 +1543,41 @@ export class OrderService {
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
     this.orderFulfillmentService.sendConfirmOrderEvent(order);
+  }
+
+  async getOrderStatisticsOfRestaurant() {
+    const from = '2021-06-01';
+    const to = '2021-06-30';
+    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const orderStatisticsQuery = getOrderStatisticsQuery(
+      restaurantId,
+      from,
+      to,
+      'week',
+    );
+
+    console.log({ orderStatisticsQuery });
+    const response =
+      ((await this.orderRepository.query(
+        orderStatisticsQuery,
+      )) as RestaurantOrderStatisticsDto[]) || [];
+    console.log({ response });
+    return {
+      status: HttpStatus.OK,
+      message: 'Get order statistics of restaurant successfully',
+      data: {
+        statistics: response.map(RestaurantOrderStatisticsDto.convertToDTO),
+      },
+    };
+  }
+
+  async getRevenueInsightOfRestaurant() {
+    return {
+      status: HttpStatus.OK,
+      message: 'Get revenue insight of restaurant successfully',
+      data: {
+        test: 'hello',
+      },
+    };
   }
 }
