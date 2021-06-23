@@ -26,3 +26,5 @@ export { EventPaypalOrderOccurDto } from './event-paypal-order-occur.dto';
 export { GetLastDraftOrderOfCustomerDto } from './get-last-draft-order-of-customer.dto';
 export { RestaurantOrderStatisticsDto } from './restaurant-order-statistics.dto';
 export { RestaurantRevenueInsightDto } from './restaurant-revenue-insight.dto';
+export { GetOrderStatisticsOfRestaurantDto } from './get-order-statistics-of-restaurant.dto';
+export { GetRevenueInsightOfRestaurantDto } from './get-revenue-insight-of-restaurant.dto';

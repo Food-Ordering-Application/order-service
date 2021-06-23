@@ -20,6 +20,8 @@ import {
   GetOrderHistoryOfCustomerDto,
   EventPaypalOrderOccurDto,
   GetLastDraftOrderOfCustomerDto,
+  GetOrderStatisticsOfRestaurantDto,
+  GetRevenueInsightOfRestaurantDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -197,5 +199,25 @@ export class OrderController {
     eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
   ) {
     this.orderService.eventPaypalOrderOccur(eventPaypalOrderOccurDto);
+  }
+
+  @MessagePattern('getOrderStatisticsOfRestaurant')
+  async getOrderStatisticsOfRestaurant(
+    @Payload()
+    getOrderStatisticsOfRestaurantDto: GetOrderStatisticsOfRestaurantDto,
+  ) {
+    return this.orderService.getOrderStatisticsOfRestaurant(
+      getOrderStatisticsOfRestaurantDto,
+    );
+    // getLastDraftOrderOfCustomerDto,
+  }
+
+  @MessagePattern('getRevenueInsightOfRestaurant')
+  async getRevenueInsightOfRestaurant(
+    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+  ) {
+    return this.orderService.getRevenueInsightOfRestaurant(
+      getRevenueInsightOfRestaurantDto,
+    );
   }
 }

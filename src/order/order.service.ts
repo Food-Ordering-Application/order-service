@@ -31,6 +31,8 @@ import {
   GetOrderDetailDto,
   GetOrderHistoryOfCustomerDto,
   GetOrdersOfCustomerDto,
+  GetOrderStatisticsOfRestaurantDto,
+  GetRevenueInsightOfRestaurantDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
@@ -1547,16 +1549,20 @@ export class OrderService {
     this.orderFulfillmentService.sendConfirmOrderEvent(order);
   }
 
-  async getOrderStatisticsOfRestaurant() {
-    const from = '2021-06-01';
-    const to = '2021-06-30';
-    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+  async getOrderStatisticsOfRestaurant(
+    getOrderStatisticsOfRestaurantDto: GetOrderStatisticsOfRestaurantDto,
+  ) {
+    // const from = '2021-06-01';
+    // const to = '2021-06-30';
+    // const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const { from, to, restaurantId, groupByInterval } =
+      getOrderStatisticsOfRestaurantDto;
     try {
       const orderStatisticsQuery = getOrderStatisticsQuery(
         restaurantId,
         from,
         to,
-        'week',
+        groupByInterval,
       );
 
       // console.log({ orderStatisticsQuery });
@@ -1582,10 +1588,13 @@ export class OrderService {
     }
   }
 
-  async getRevenueInsightOfRestaurant() {
-    const from = '2021-06-01';
-    const to = '2021-06-30';
-    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+  async getRevenueInsightOfRestaurant(
+    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+  ) {
+    // const from = '2021-06-01';
+    // const to = '2021-06-30';
+    // const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const { from, to, restaurantId } = getRevenueInsightOfRestaurantDto;
     try {
       const revenueInsightQuery = getRevenueQuery(restaurantId, from, to);
 
