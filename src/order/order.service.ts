@@ -977,7 +977,7 @@ export class OrderService {
       ]);
       console.log('get is autoconfirm ok');
       console.log('values', values[0].isAutoConfirm);
-      console.dir('values[3]', values[3]);
+      console.log('values[3]', values[3]);
       //TODO: Tạo và lưu DeliveryLocation
       if (!values[3].data.city) {
         throw new Error(
