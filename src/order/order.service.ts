@@ -1,13 +1,26 @@
-import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
-import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
+import * as paypal from '@paypal/checkout-server-sdk';
+import axios from 'axios';
+import moment from 'moment';
+import * as momenttimezone from 'moment-timezone';
 import {
   Connection,
   QueryRunner,
   Repository,
   SelectQueryBuilder,
 } from 'typeorm';
+import * as uniqid from 'uniqid';
+import { client } from '../config/paypal';
+import {
+  DELIVERY_SERVICE,
+  NOTIFICATION_SERVICE,
+  RESTAURANT_SERVICE,
+  USER_SERVICE,
+} from '../constants';
+import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
+import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -20,13 +33,19 @@ import {
   GetOrderDetailDto,
   GetOrderHistoryOfCustomerDto,
   GetOrdersOfCustomerDto,
+  GetOrderStatisticsOfRestaurantDto,
+  GetRevenueInsightOfRestaurantDto,
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  RestaurantOrderStatisticsDto,
+  RestaurantRevenueInsightDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
+import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import {
   CashPayment,
   Delivery,
@@ -37,15 +56,30 @@ import {
   Payment,
   PaypalPayment,
 } from './entities';
+import { DeliveryLocation } from './entities/delivery-location.entity';
 import {
-  OrdStatus,
   DeliveryStatus,
+  EDriverOrderType,
   GetRestaurantOrder,
+  InvoiceStatus,
+  OrdStatus,
   PaymentMethod,
   PaymentStatus,
-  InvoiceStatus,
-  EDriverOrderType,
 } from './enums';
+import { createAndStoreOrderItem } from './helpers';
+import {
+  calculateExpectedDeliveryTime,
+  calculateOrderGrandToTal,
+  calculateOrderSubTotal,
+  calculateShippingFee,
+  findOrderItem,
+  findOrderItemIndex,
+  getPreparationTime,
+} from './helpers/order-logic.helper';
+import {
+  getOrderStatisticsQuery,
+  getRevenueQuery,
+} from './helpers/query-builder';
 import {
   IApprovePaypalOrder,
   ICityAreaData,
@@ -58,33 +92,6 @@ import {
   IRestaurantStatisticResponse,
   ISaveOrderResponse,
 } from './interfaces';
-import { createAndStoreOrderItem } from './helpers';
-import {
-  calculateOrderSubTotal,
-  calculateOrderGrandToTal,
-  findOrderItem,
-  findOrderItemIndex,
-  calculateShippingFee,
-  calculateExpectedDeliveryTime,
-  getPreparationTime,
-} from './helpers/order-logic.helper';
-import * as paypal from '@paypal/checkout-server-sdk';
-import { client } from '../config/paypal';
-import axios from 'axios';
-import * as uniqid from 'uniqid';
-import * as momenttimezone from 'moment-timezone';
-import * as moment from 'moment';
-import {
-  DELIVERY_SERVICE,
-  NOTIFICATION_SERVICE,
-  USER_SERVICE,
-  RESTAURANT_SERVICE,
-} from '../constants';
-import { ClientProxy } from '@nestjs/microservices';
-import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
-import { DeliveryLocation } from './entities/delivery-location.entity';
-const DEFAULT_EXCHANGE_RATE = 0.00004;
-const PERCENT_PLATFORM_FEE = 0.2;
 
 @Injectable()
 export class OrderService {
@@ -1654,6 +1661,78 @@ export class OrderService {
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message,
+      };
+    }
+  }
+
+  async getOrderStatisticsOfRestaurant(
+    getOrderStatisticsOfRestaurantDto: GetOrderStatisticsOfRestaurantDto,
+  ) {
+    // const from = '2021-06-01';
+    // const to = '2021-06-30';
+    // const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const { from, to, restaurantId, groupByInterval } =
+      getOrderStatisticsOfRestaurantDto;
+    try {
+      const orderStatisticsQuery = getOrderStatisticsQuery(
+        restaurantId,
+        from,
+        to,
+        groupByInterval,
+      );
+
+      // console.log({ orderStatisticsQuery });
+      const response =
+        ((await this.orderRepository.query(
+          orderStatisticsQuery,
+        )) as RestaurantOrderStatisticsDto[]) || [];
+      // console.log({ response });
+      return {
+        status: HttpStatus.OK,
+        message: 'Get order statistics of restaurant successfully',
+        data: {
+          statistics: response.map(RestaurantOrderStatisticsDto.convertToDTO),
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        data: null,
+      };
+    }
+  }
+
+  async getRevenueInsightOfRestaurant(
+    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+  ) {
+    // const from = '2021-06-01';
+    // const to = '2021-06-30';
+    // const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const { from, to, restaurantId } = getRevenueInsightOfRestaurantDto;
+    try {
+      const revenueInsightQuery = getRevenueQuery(restaurantId, from, to);
+
+      // console.log({ orderStatisticsQuery });
+      const response = ((await this.orderRepository.query(
+        revenueInsightQuery,
+      )) as RestaurantRevenueInsightDto) || [null];
+      // console.log({ response });
+      const insight = response[0];
+      return {
+        status: HttpStatus.OK,
+        message: 'Get revenue insight of restaurant successfully',
+        data: {
+          revenueInsight: RestaurantRevenueInsightDto.convertToDTO(insight),
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        data: null,
       };
     }
   }

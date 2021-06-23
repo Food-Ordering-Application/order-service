@@ -8,3 +8,4 @@ export { InvoiceStatus } from './invoice-status.enum';
 export { DeliveryIssue } from './delivery-issue.enum';
 export { PayPalRefundStatus } from './paypal-refund-status.enum';
 export { EDriverOrderType } from './list-order-driver';
+export { GroupByInterval } from './group-by-interval.enum';
