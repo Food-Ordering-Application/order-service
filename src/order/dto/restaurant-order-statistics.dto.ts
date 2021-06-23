@@ -29,6 +29,11 @@ export class RestaurantOrderStatisticsDto {
   static convertToDTO(
     raw: RestaurantOrderStatisticsDto,
   ): RestaurantOrderStatisticsDto {
+    Object.keys(raw)
+      .filter(
+        (key) => key != RestaurantOrderStatisticsDto.getPropName().columnName,
+      )
+      .forEach((key) => (raw[key] = parseInt(raw[key])));
     const utc = raw.columnName;
     const vietnam_day = moment(utc).tz('Asia/Ho_Chi_Minh').format('DD-MM');
     // console.log({ utc, result });

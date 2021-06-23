@@ -18,6 +18,7 @@ import {
   USER_SERVICE,
 } from '../constants';
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
+import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
 import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
@@ -34,6 +35,7 @@ import {
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
   RestaurantOrderStatisticsDto,
+  RestaurantRevenueInsightDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
 } from './dto';
@@ -68,7 +70,10 @@ import {
   findOrderItemIndex,
   getPreparationTime,
 } from './helpers/order-logic.helper';
-import { getOrderStatisticsQuery } from './helpers/query-builder';
+import {
+  getOrderStatisticsQuery,
+  getRevenueQuery,
+} from './helpers/query-builder';
 import {
   IApprovePaypalOrder,
   IConfirmOrderCheckoutResponse,
@@ -79,9 +84,6 @@ import {
   IOrdersResponse,
   ISaveOrderResponse,
 } from './interfaces';
-const DEFAULT_EXCHANGE_RATE = 0.00004;
-const PERCENT_PLATFORM_FEE = 0.2;
-
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -1549,35 +1551,64 @@ export class OrderService {
     const from = '2021-06-01';
     const to = '2021-06-30';
     const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
-    const orderStatisticsQuery = getOrderStatisticsQuery(
-      restaurantId,
-      from,
-      to,
-      'week',
-    );
+    try {
+      const orderStatisticsQuery = getOrderStatisticsQuery(
+        restaurantId,
+        from,
+        to,
+        'week',
+      );
 
-    console.log({ orderStatisticsQuery });
-    const response =
-      ((await this.orderRepository.query(
-        orderStatisticsQuery,
-      )) as RestaurantOrderStatisticsDto[]) || [];
-    console.log({ response });
-    return {
-      status: HttpStatus.OK,
-      message: 'Get order statistics of restaurant successfully',
-      data: {
-        statistics: response.map(RestaurantOrderStatisticsDto.convertToDTO),
-      },
-    };
+      // console.log({ orderStatisticsQuery });
+      const response =
+        ((await this.orderRepository.query(
+          orderStatisticsQuery,
+        )) as RestaurantOrderStatisticsDto[]) || [];
+      // console.log({ response });
+      return {
+        status: HttpStatus.OK,
+        message: 'Get order statistics of restaurant successfully',
+        data: {
+          statistics: response.map(RestaurantOrderStatisticsDto.convertToDTO),
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        data: null,
+      };
+    }
   }
 
   async getRevenueInsightOfRestaurant() {
-    return {
-      status: HttpStatus.OK,
-      message: 'Get revenue insight of restaurant successfully',
-      data: {
-        test: 'hello',
-      },
-    };
+    const from = '2021-06-01';
+    const to = '2021-06-30';
+    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    try {
+      const revenueInsightQuery = getRevenueQuery(restaurantId, from, to);
+
+      // console.log({ orderStatisticsQuery });
+      const response = ((await this.orderRepository.query(
+        revenueInsightQuery,
+      )) as RestaurantRevenueInsightDto) || [null];
+      // console.log({ response });
+      const insight = response[0];
+      return {
+        status: HttpStatus.OK,
+        message: 'Get revenue insight of restaurant successfully',
+        data: {
+          revenueInsight: RestaurantRevenueInsightDto.convertToDTO(insight),
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        data: null,
+      };
+    }
   }
 }
