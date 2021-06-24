@@ -45,6 +45,7 @@ import {
   UpdateOrderItemQuantityDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { GetMenuInsightOfRestaurantDto } from './dto/get-menu-insight-of-restaurant.dto';
 import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
 import { SavePosOrderDto } from './dto/pos-order/save-pos-order.dto';
 import {
@@ -1741,14 +1742,16 @@ export class OrderService {
   }
 
   async getMenuInsightOfRestaurant(
-    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+    getMenuInsightOfRestaurantDto: GetMenuInsightOfRestaurantDto,
   ) {
-    const from = '2021-06-01';
-    const to = '2021-06-30';
-    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
-    const sortBy: 'totalOrder' | 'posOrder' | 'saleOrder' = 'posOrder';
-    const limit = 10;
-    // const { from, to, restaurantId } = getRevenueInsightOfRestaurantDto;
+    // const from = '2021-06-01';
+    // const to = '2021-06-30';
+    // const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    // const sortBy: 'totalOrder' | 'posOrder' | 'saleOrder' = 'posOrder';
+    // const limit = 5;
+
+    const { from, to, restaurantId, sortBy, limit } =
+      getMenuInsightOfRestaurantDto;
     try {
       const menuInsightQuery = getMenuItemQuery(
         restaurantId,
@@ -1765,7 +1768,7 @@ export class OrderService {
         )) as RestaurantMenuInsightDto[]) || [];
 
       let populateResponse = [];
-      if (!response.length) {
+      if (response.length) {
         const menuItems = response.map(RestaurantMenuInsightDto.convertToDTO);
 
         const menuItemIds = menuItems.map(({ menuItemId }) => menuItemId);

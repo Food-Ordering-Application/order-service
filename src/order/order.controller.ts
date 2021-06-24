@@ -34,6 +34,7 @@ import {
 } from './interfaces';
 import { EventPattern } from '@nestjs/microservices';
 import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
+import { GetMenuInsightOfRestaurantDto } from './dto/get-menu-insight-of-restaurant.dto';
 
 @Controller()
 export class OrderController {
@@ -233,10 +234,10 @@ export class OrderController {
 
   @MessagePattern('getMenuInsightOfRestaurant')
   async getMenuInsightOfRestaurant(
-    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+    getMenuInsightOfRestaurantDto: GetMenuInsightOfRestaurantDto,
   ) {
     return this.orderService.getMenuInsightOfRestaurant(
-      getRevenueInsightOfRestaurantDto,
+      getMenuInsightOfRestaurantDto,
     );
   }
 }
