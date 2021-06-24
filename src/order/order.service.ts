@@ -38,6 +38,7 @@ import {
   IncreaseOrderItemQuantityDto,
   ReduceOrderItemQuantityDto,
   RemoveOrderItemDto,
+  RestaurantMenuInsightDto,
   RestaurantOrderStatisticsDto,
   RestaurantRevenueInsightDto,
   UpdateDeliveryAddressDto,
@@ -77,6 +78,7 @@ import {
   getPreparationTime,
 } from './helpers/order-logic.helper';
 import {
+  getMenuItemQuery,
   getOrderStatisticsQuery,
   getRevenueQuery,
 } from './helpers/query-builder';
@@ -1726,6 +1728,86 @@ export class OrderService {
         message: 'Get revenue insight of restaurant successfully',
         data: {
           revenueInsight: RestaurantRevenueInsightDto.convertToDTO(insight),
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+        data: null,
+      };
+    }
+  }
+
+  async getMenuInsightOfRestaurant(
+    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+  ) {
+    const from = '2021-06-01';
+    const to = '2021-06-30';
+    const restaurantId = '6587f789-8c76-4a2e-9924-c14fc30629ef';
+    const sortBy: 'totalOrder' | 'posOrder' | 'saleOrder' = 'posOrder';
+    const limit = 10;
+    // const { from, to, restaurantId } = getRevenueInsightOfRestaurantDto;
+    try {
+      const menuInsightQuery = getMenuItemQuery(
+        restaurantId,
+        from,
+        to,
+        sortBy,
+        limit,
+      );
+
+      // console.log({ menuInsightQuery });
+      const response =
+        ((await this.orderRepository.query(
+          menuInsightQuery,
+        )) as RestaurantMenuInsightDto[]) || [];
+
+      let populateResponse = [];
+      if (!response.length) {
+        const menuItems = response.map(RestaurantMenuInsightDto.convertToDTO);
+
+        const menuItemIds = menuItems.map(({ menuItemId }) => menuItemId);
+
+        const {
+          data: { menuItems: menuItemsResponse },
+        } = await this.restaurantServiceClient
+          .send('getMenuItemInfos', {
+            menuItemIds,
+          })
+          .toPromise();
+
+        // populate menu item infos with insight response
+        populateResponse = (menuItemsResponse as Record<string, any>).reduce(
+          (prev, menuItemData) => {
+            if (menuItemData) {
+              const { id, ...populateData } = menuItemData;
+
+              const sourceMenuItem = menuItems.find(
+                ({ menuItemId }) => menuItemId == id,
+              );
+
+              if (sourceMenuItem) {
+                prev.push({ ...sourceMenuItem, ...populateData });
+              }
+            }
+            return prev;
+          },
+          [] as (RestaurantMenuInsightDto & Record<string, any>)[],
+        );
+
+        if (menuItems.length > populateResponse.length) {
+          this.logger.warn(`menu item data loss ${restaurantId}`);
+        }
+        // console.log({ menuItemsResponse, populateResponse });
+      }
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Get menu insight of restaurant successfully',
+        data: {
+          menuItems: populateResponse,
         },
       };
     } catch (error) {

@@ -230,4 +230,13 @@ export class OrderController {
       getRevenueInsightOfRestaurantDto,
     );
   }
+
+  @MessagePattern('getMenuInsightOfRestaurant')
+  async getMenuInsightOfRestaurant(
+    getRevenueInsightOfRestaurantDto: GetRevenueInsightOfRestaurantDto,
+  ) {
+    return this.orderService.getMenuInsightOfRestaurant(
+      getRevenueInsightOfRestaurantDto,
+    );
+  }
 }
