@@ -1596,10 +1596,10 @@ export class OrderService {
       const data: ICityAreaData[] = await this.deliveryLocationRepository
         .createQueryBuilder('deliveryL')
         .select([
-          'deliveryL.areaId',
-          'deliveryL.areaName',
-          'deliveryL.cityName',
-          'deliveryL.cityId',
+          'deliveryL.areaId AS areaId',
+          'deliveryL.areaName AS areaName',
+          'deliveryL.cityName AS cityName',
+          'deliveryL.cityId AS cityId',
         ])
         .addSelect('COUNT(order.id) AS numOrders')
         .leftJoin('deliveryL.order', 'order')
