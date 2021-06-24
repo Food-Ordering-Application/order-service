@@ -1,3 +1,4 @@
+import { CacheService } from './../cache/cache.service';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
@@ -64,6 +65,7 @@ import {
   EDriverOrderType,
   GetRestaurantOrder,
   InvoiceStatus,
+  MenuInsightSortBy,
   OrdStatus,
   PaymentMethod,
   PaymentStatus,
@@ -126,6 +128,8 @@ export class OrderService {
     private restaurantServiceClient: ClientProxy,
     @Inject(NOTIFICATION_SERVICE)
     private notificationServiceClient: ClientProxy,
+
+    private cacheService: CacheService,
   ) {}
 
   async createOrderAndFirstOrderItem(
@@ -1750,8 +1754,14 @@ export class OrderService {
     // const sortBy: 'totalOrder' | 'posOrder' | 'saleOrder' = 'posOrder';
     // const limit = 5;
 
-    const { from, to, restaurantId, sortBy, limit } =
-      getMenuInsightOfRestaurantDto;
+    const {
+      from,
+      to,
+      restaurantId,
+      sortBy = MenuInsightSortBy.saleOrder,
+      limit,
+    } = getMenuInsightOfRestaurantDto;
+
     try {
       const menuInsightQuery = getMenuItemQuery(
         restaurantId,
@@ -1761,11 +1771,34 @@ export class OrderService {
         limit,
       );
 
-      // console.log({ menuInsightQuery });
-      const response =
-        ((await this.orderRepository.query(
-          menuInsightQuery,
-        )) as RestaurantMenuInsightDto[]) || [];
+      const getCacheKey = (
+        getMenuInsightOfRestaurantDto: GetMenuInsightOfRestaurantDto,
+      ) => {
+        const { from, to, restaurantId, sortBy, limit } =
+          getMenuInsightOfRestaurantDto;
+        return `restaurant:${restaurantId}:${from}-${to}:${sortBy}:${limit}`;
+      };
+
+      let response: RestaurantMenuInsightDto[] = null;
+
+      const cacheKey = getCacheKey(getMenuInsightOfRestaurantDto);
+      const cacheResponse = this.cacheService.get(
+        cacheKey,
+      ) as RestaurantMenuInsightDto[];
+
+      if (cacheResponse) {
+        response = cacheResponse;
+        this.logger.log('Cache Hit!');
+        // console.log({ cacheKey: 'cacheKey: ' + cacheKey, response });
+      } else {
+        // console.log({ menuInsightQuery });
+        response =
+          ((await this.orderRepository.query(
+            menuInsightQuery,
+          )) as RestaurantMenuInsightDto[]) || [];
+
+        this.cacheService.set(cacheKey, response);
+      }
 
       let populateResponse = [];
       if (response.length) {

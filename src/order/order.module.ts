@@ -1,3 +1,4 @@
+import { CacheModule } from './../cache/cache.module';
 import { Module } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
@@ -26,6 +27,7 @@ import { DeliveryLocation } from './entities/delivery-location.entity';
 @Module({
   imports: [
     OrderFulfillmentModule,
+    CacheModule,
     TypeOrmModule.forFeature([
       Order,
       OrderItemTopping,
