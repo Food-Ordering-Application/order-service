@@ -3,7 +3,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import * as paypal from '@paypal/checkout-server-sdk';
 import axios from 'axios';
-import moment from 'moment';
+import * as moment from 'moment';
 import * as momenttimezone from 'moment-timezone';
 import {
   Connection,
@@ -1589,9 +1589,8 @@ export class OrderService {
   ): Promise<IRestaurantStatisticResponse> {
     try {
       const { merchantId, restaurantId } = getRestaurantStatisticDto;
-
+      console.log('GETRESTAURANTSTATISTIC');
       const aMonthAgoUTC = moment().subtract(30, 'day').utc().toISOString();
-
       console.log('aMonthAgoUTC', aMonthAgoUTC);
 
       const data: ICityAreaData[] = await this.deliveryLocationRepository

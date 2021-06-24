@@ -220,7 +220,6 @@ export class OrderController {
     return this.orderService.getOrderStatisticsOfRestaurant(
       getOrderStatisticsOfRestaurantDto,
     );
-    // getLastDraftOrderOfCustomerDto,
   }
 
   @MessagePattern('getRevenueInsightOfRestaurant')
