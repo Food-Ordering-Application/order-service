@@ -4,6 +4,7 @@ import {
   RestaurantOrderStatisticsDto,
   RestaurantRevenueInsightDto,
 } from '../dto';
+import { MenuInsightSortBy } from '../enums';
 const getOrderStatisticsQuery = (
   restaurantId: string,
   from: string,
@@ -103,7 +104,7 @@ const getMenuItemQuery = (
   restaurantId: string,
   from: string,
   to: string,
-  sortBy: 'totalOrder' | 'posOrder' | 'saleOrder',
+  sortBy: MenuInsightSortBy,
   limit: number,
 ) => {
   const propName = RestaurantMenuInsightDto.getPropName();
@@ -113,6 +114,7 @@ const getMenuItemQuery = (
     saleOrder: propName.saleOrderTotalQuantities,
   };
   const nResult = `${limit}`;
+  if (!sortBy) sortBy = MenuInsightSortBy.saleOrder;
   const sortByColumn = `${sortByToPropName[sortBy]}`;
 
   const belongToRestaurant = `o."restaurantId" = '${restaurantId}'`;
