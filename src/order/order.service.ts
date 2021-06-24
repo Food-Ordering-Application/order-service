@@ -1614,6 +1614,8 @@ export class OrderService {
         })
         .groupBy('deliveryL.areaId')
         .addGroupBy('deliveryL.cityId')
+        .addGroupBy('deliveryL.areaName')
+        .addGroupBy('deliveryL.cityName')
         .getRawMany();
 
       if (!data || data.length === 0) {
