@@ -39,68 +39,6 @@ import { DeliveryLocation } from './entities/delivery-location.entity';
       CashPayment,
       DeliveryLocation,
     ]),
-    ClientsModule.registerAsync([
-      {
-        name: NOTIFICATION_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('NOTIFICATION_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: DELIVERY_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('DELIVERY_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: USER_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('USER_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: RESTAURANT_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('RESTAURANT_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-    ]),
   ],
   controllers: [OrderController],
   providers: [OrderService],
