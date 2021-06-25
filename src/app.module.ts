@@ -1,18 +1,12 @@
-import { OrderFulfillmentModule } from './order-fulfillment/order-fulfillment.module';
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import * as Joi from 'joi';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as Joi from 'joi';
 import { DatabaseModule } from './database/database.module';
+import { MicroserviceModule } from './microservice/microservice.module';
+import { OrderFulfillmentModule } from './order-fulfillment/order-fulfillment.module';
 import { OrderModule } from './order/order.module';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import {
-  DELIVERY_SERVICE,
-  NOTIFICATION_SERVICE,
-  RESTAURANT_SERVICE,
-  USER_SERVICE,
-} from './constants';
 
 @Module({
   imports: [
@@ -25,69 +19,7 @@ import {
         POSTGRES_DB: Joi.string().required(),
       }),
     }),
-    ClientsModule.registerAsync([
-      {
-        name: NOTIFICATION_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('NOTIFICATION_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: DELIVERY_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('DELIVERY_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: USER_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('USER_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-      {
-        name: RESTAURANT_SERVICE,
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('RESTAURANT_AMQP_QUEUE'),
-            queueOptions: {
-              durable: false,
-            },
-          },
-        }),
-      },
-    ]),
-
+    MicroserviceModule,
     DatabaseModule,
     OrderModule,
     OrderFulfillmentModule,
