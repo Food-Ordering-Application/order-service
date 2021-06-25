@@ -29,3 +29,4 @@ export { RestaurantRevenueInsightDto } from './restaurant-revenue-insight.dto';
 export { GetOrderStatisticsOfRestaurantDto } from './get-order-statistics-of-restaurant.dto';
 export { GetRevenueInsightOfRestaurantDto } from './get-revenue-insight-of-restaurant.dto';
 export { RestaurantMenuInsightDto } from './restaurant-menu-insight.dto';
+export { GetOrderRatingInfosDto } from './get-order-rating-infos.dto';

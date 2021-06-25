@@ -1,3 +1,4 @@
+import { IGetOrderRatingInfosResponse } from './interfaces/get-order-rating-infos-response.interface';
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { OrderService } from './order.service';
@@ -22,6 +23,7 @@ import {
   GetLastDraftOrderOfCustomerDto,
   GetOrderStatisticsOfRestaurantDto,
   GetRevenueInsightOfRestaurantDto,
+  GetOrderRatingInfosDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -239,5 +241,12 @@ export class OrderController {
     return this.orderService.getMenuInsightOfRestaurant(
       getMenuInsightOfRestaurantDto,
     );
+  }
+
+  @MessagePattern('getOrderRatingInfos')
+  async getOrderRatingInfos(
+    getOrderRatingInfosDto: GetOrderRatingInfosDto,
+  ): Promise<IGetOrderRatingInfosResponse> {
+    return this.orderService.getOrderRatingInfos(getOrderRatingInfosDto);
   }
 }

@@ -1,4 +1,3 @@
-import { CacheService } from './../cache/cache.service';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
@@ -15,11 +14,11 @@ import {
 import * as uniqid from 'uniqid';
 import { client } from '../config/paypal';
 import {
-  DELIVERY_SERVICE,
   NOTIFICATION_SERVICE,
   RESTAURANT_SERVICE,
   USER_SERVICE,
 } from '../constants';
+import { CacheService } from './../cache/cache.service';
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
 import {
@@ -33,6 +32,7 @@ import {
   GetOrderAssociatedWithCusAndResDto,
   GetOrderDetailDto,
   GetOrderHistoryOfCustomerDto,
+  GetOrderRatingInfosDto,
   GetOrdersOfCustomerDto,
   GetOrderStatisticsOfRestaurantDto,
   GetRevenueInsightOfRestaurantDto,
@@ -91,6 +91,7 @@ import {
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   ICustomerOrdersResponse,
+  IGetOrderRatingInfosResponse,
   IIsAutoConfirmResponse,
   IOrder,
   IOrdersResponse,
@@ -1854,5 +1855,48 @@ export class OrderService {
         data: null,
       };
     }
+  }
+
+  async getOrderRatingInfos(
+    getOrderRatingInfosDto: GetOrderRatingInfosDto,
+  ): Promise<IGetOrderRatingInfosResponse> {
+    const { customerId, orderId } = getOrderRatingInfosDto;
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .where('order.id = :orderId', {
+        orderId: orderId,
+      })
+      .getOne();
+
+    if (!order) {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Order not found',
+        data: null,
+      };
+    }
+
+    if (order?.delivery?.customerId != customerId) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        message: 'Cannot access another order',
+        data: null,
+      };
+    }
+    const {
+      restaurantId,
+      delivery: { deliveredAt, driverId },
+    } = order;
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Success',
+      data: {
+        deliveredAt,
+        driverId,
+        restaurantId,
+      },
+    };
   }
 }
