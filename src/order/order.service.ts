@@ -993,7 +993,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. Order server has problem!',
+                    'Timeout. User server has problem!',
                   ),
                 );
               }
@@ -1016,7 +1016,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. Order server has problem!',
+                    'Timeout. Restaurant server has problem!',
                   ),
                 );
               }
