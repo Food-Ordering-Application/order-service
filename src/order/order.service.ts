@@ -993,7 +993,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. User server has problem!',
+                    'Internal timeout User server has problem!',
                   ),
                 );
               }
@@ -1016,7 +1016,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. Restaurant server has problem!',
+                    'Internal timeout Restaurant server has problem!',
                   ),
                 );
               }
@@ -1242,7 +1242,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. User server has problem!',
+                    'Internal timeout User server has problem!',
                   ),
                 );
               }
@@ -1867,7 +1867,7 @@ export class OrderService {
               if (err instanceof TimeoutError) {
                 return throwError(
                   new RequestTimeoutException(
-                    'Timeout. Restaurant server has problem!',
+                    'Internal timeout Restaurant server has problem!',
                   ),
                 );
               }
