@@ -19,7 +19,7 @@ import {
           transport: Transport.RMQ,
           options: {
             urls: [configService.get('AMQP_URL') as string],
-            queue: configService.get('USERS_AMQP_QUEUE'),
+            queue: configService.get('USER_AMQP_QUEUE'),
             queueOptions: {
               durable: false,
             },
