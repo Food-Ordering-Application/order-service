@@ -1,7 +1,7 @@
-import { ICustomerOrder } from '.';
+import { ICustomerOrder, IFeedback } from '.';
 
 export interface ICustomerOrdersResponse {
   status: number;
   message: string;
-  orders: ICustomerOrder[] | null;
+  orders: (ICustomerOrder & { feedback?: IFeedback })[] | null;
 }

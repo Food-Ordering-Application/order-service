@@ -98,6 +98,7 @@ import {
   ICityAreaData,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
+  ICustomerOrder,
   ICustomerOrdersResponse,
   IFeedback,
   IGetOrderRatingInfosResponse,
@@ -1525,11 +1526,48 @@ export class OrderService {
 
     const orders = await orderQueryBuilder.getMany();
 
-    return {
-      status: HttpStatus.OK,
-      message: 'Fetch orders of customer successfully',
-      orders: orders,
-    };
+    const completedOrderIds = orders.reduce((prev, cur) => {
+      if (cur?.status === OrdStatus.COMPLETED) {
+        prev.push(cur.id);
+      }
+      return prev;
+    }, [] as string[]);
+
+    if (!completedOrderIds.length) {
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: orders,
+      };
+    }
+
+    // try to get feedback
+    try {
+      const feedbacks = await this.getFeedbackOfOrders(completedOrderIds);
+      const ordersWithFeedback: (ICustomerOrder & { feedback?: IFeedback })[] =
+        orders.map((order) => {
+          const feedback = feedbacks.find(
+            ({ orderId }) => order?.id === orderId,
+          );
+          return {
+            ...order,
+            feedback,
+          };
+        });
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: ordersWithFeedback,
+      };
+    } catch (e) {
+      console.log('Cannot get feedbacks: ' + e.message);
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: orders,
+      };
+    }
   }
 
   async getOnGoingOrdersOfCustomer(
