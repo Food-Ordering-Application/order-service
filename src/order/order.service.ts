@@ -11,6 +11,8 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import axios from 'axios';
 import * as moment from 'moment';
 import * as momenttimezone from 'moment-timezone';
+import { throwError, TimeoutError } from 'rxjs';
+import { catchError, timeout } from 'rxjs/operators';
 import {
   Connection,
   QueryRunner,
@@ -24,8 +26,6 @@ import {
   RESTAURANT_SERVICE,
   USER_SERVICE,
 } from '../constants';
-import { catchError, timeout } from 'rxjs/operators';
-import { throwError, TimeoutError } from 'rxjs';
 import { CacheService } from './../cache/cache.service';
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
@@ -99,6 +99,7 @@ import {
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
   ICustomerOrdersResponse,
+  IFeedback,
   IGetOrderRatingInfosResponse,
   IIsAutoConfirmResponse,
   IOrder,
@@ -719,10 +720,22 @@ export class OrderService {
         };
       }
 
+      if (order?.status !== OrdStatus.COMPLETED) {
+        return {
+          status: HttpStatus.OK,
+          message: 'Order fetched successfully',
+          order,
+        };
+      }
+
+      const feedbacks = await this.getFeedbackOfOrders([orderId]);
+      const feedback: IFeedback =
+        Array.isArray(feedbacks) && feedbacks.length ? feedbacks[0] : null;
+
       return {
         status: HttpStatus.OK,
         message: 'Order fetched successfully',
-        order,
+        order: { ...order, feedback },
       };
     } catch (error) {
       this.logger.error(error);
@@ -1959,5 +1972,29 @@ export class OrderService {
         restaurantId,
       },
     };
+  }
+
+  async getFeedbackOfOrders(orderIds: string[]): Promise<IFeedback[]> {
+    const response = await this.userServiceClient
+      .send('getFeedbackOfOrders', {
+        orderIds: orderIds,
+      })
+      .pipe(
+        timeout(3000),
+        catchError((err) => {
+          if (err instanceof TimeoutError) {
+            return null;
+          }
+          return throwError({ message: err });
+        }),
+      )
+      .toPromise();
+    if (!response || !response?.data?.feedbacks) {
+      return null;
+    }
+    const {
+      data: { feedbacks = [] },
+    } = response;
+    return feedbacks;
   }
 }

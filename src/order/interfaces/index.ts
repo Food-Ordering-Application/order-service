@@ -18,3 +18,5 @@ export { IIsAutoConfirmResponse } from './isautoconfirm-response.interface';
 export { IRestaurantStatisticResponse } from './get-restaurant-statistic-response.interface';
 export { ICityAreaData } from './city-area-data.interface';
 export { IGetOrderRatingInfosResponse } from './get-order-rating-infos-response.interface';
+export { IFeedback } from './feedback.interface';
+export { IGetFeedbackOfOrders } from './get-feedback-of-orders-response.interface';
