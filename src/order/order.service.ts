@@ -1,4 +1,10 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import * as paypal from '@paypal/checkout-server-sdk';
@@ -18,6 +24,8 @@ import {
   RESTAURANT_SERVICE,
   USER_SERVICE,
 } from '../constants';
+import { catchError, timeout } from 'rxjs/operators';
+import { throwError, TimeoutError } from 'rxjs';
 import { CacheService } from './../cache/cache.service';
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
@@ -975,9 +983,23 @@ export class OrderService {
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
       console.log('getting is autoconfirm');
+      console.log({ user: this.userServiceClient });
       const values = await Promise.all([
         this.userServiceClient
           .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
+          .pipe(
+            timeout(5000),
+            catchError((err) => {
+              if (err instanceof TimeoutError) {
+                return throwError(
+                  new RequestTimeoutException(
+                    'Timeout. Order server has problem!',
+                  ),
+                );
+              }
+              return throwError({ message: err });
+            }),
+          )
           .toPromise(),
         queryRunner.manager.save(Order, order),
         queryRunner.manager.save(Invoice, invoice),
@@ -988,6 +1010,19 @@ export class OrderService {
               longitude: order.delivery.customerGeom.coordinates[0],
             },
           })
+          .pipe(
+            timeout(5000),
+            catchError((err) => {
+              if (err instanceof TimeoutError) {
+                return throwError(
+                  new RequestTimeoutException(
+                    'Timeout. Order server has problem!',
+                  ),
+                );
+              }
+              return throwError({ message: err });
+            }),
+          )
           .toPromise(),
       ]);
       console.log('get is autoconfirm ok');
@@ -1201,6 +1236,19 @@ export class OrderService {
           .send('getIsAutoConfirm', {
             restaurantId: order.restaurantId,
           })
+          .pipe(
+            timeout(5000),
+            catchError((err) => {
+              if (err instanceof TimeoutError) {
+                return throwError(
+                  new RequestTimeoutException(
+                    'Timeout. User server has problem!',
+                  ),
+                );
+              }
+              return throwError({ message: err });
+            }),
+          )
           .toPromise(),
         queryRunner.startTransaction(),
       ]);
@@ -1813,6 +1861,19 @@ export class OrderService {
           .send('getMenuItemInfos', {
             menuItemIds,
           })
+          .pipe(
+            timeout(5000),
+            catchError((err) => {
+              if (err instanceof TimeoutError) {
+                return throwError(
+                  new RequestTimeoutException(
+                    'Timeout. Restaurant server has problem!',
+                  ),
+                );
+              }
+              return throwError({ message: err });
+            }),
+          )
           .toPromise();
 
         // populate menu item infos with insight response
