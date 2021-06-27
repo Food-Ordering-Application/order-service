@@ -997,7 +997,6 @@ export class OrderService {
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
       console.log('getting is autoconfirm');
-      console.log({ user: this.userServiceClient });
       const values = await Promise.all([
         this.userServiceClient
           .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
@@ -1532,7 +1531,6 @@ export class OrderService {
       }
       return prev;
     }, [] as string[]);
-
     if (!completedOrderIds.length) {
       return {
         status: HttpStatus.OK,
@@ -1547,11 +1545,11 @@ export class OrderService {
       const ordersWithFeedback: (ICustomerOrder & { feedback?: IFeedback })[] =
         orders.map((order) => {
           const feedback = feedbacks.find(
-            ({ orderId }) => order?.id === orderId,
+            (feedback) => order?.id === feedback?.orderId,
           );
           return {
             ...order,
-            feedback,
+            feedback: feedback || null,
           };
         });
 
