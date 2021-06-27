@@ -1089,111 +1089,41 @@ export class OrderService {
             message: 'Confirm order checkout successfully',
           };
         case PaymentMethod.PAYPAL:
-          // const exchangeRate = await axios.get(
-          //   'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
-          // );
-          // const rate = exchangeRate.data.VND_USD || DEFAULT_EXCHANGE_RATE;
-          // let subTotalUSD = 0;
-          // const items = order.orderItems.map((orderItem) => {
-          //   const orderItemPriceUSD = parseFloat(
-          //     (orderItem.subTotal * rate).toFixed(2),
-          //   );
-          //   subTotalUSD += parseFloat(
-          //     (orderItemPriceUSD * orderItem.quantity).toFixed(2),
-          //   );
-          //   return {
-          //     name: orderItem.name,
-          //     unit_amount: {
-          //       currency_code: 'USD',
-          //       value: orderItemPriceUSD.toString(),
-          //     },
-          //     quantity: orderItem.quantity,
-          //   };
-          // });
-          // subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
-          // const shippingFeeUSD = parseFloat(
-          //   (order.delivery.shippingFee * rate).toFixed(2),
-          // );
-          // const grandTotalUSD = parseFloat(
-          //   (subTotalUSD + shippingFeeUSD).toFixed(2),
-          // );
-          // const amountPlatformFee = parseFloat(
-          //   (subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD).toFixed(2),
-          // );
-
-          // console.log('SubTotalUSD', subTotalUSD);
-          // console.log('GrandTotalUSD', grandTotalUSD);
-          // console.log('ShippingFeeUSD', shippingFeeUSD);
-          // console.log('amountPlatformFee', amountPlatformFee);
-          // console.log('paypalMerchantId', paypalMerchantId);
-
-          // //TODO: Tạo paypal order
-          // const request = new paypal.orders.OrdersCreateRequest();
-          // request.headers['PayPal-Partner-Attribution-Id'] =
-          //   process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
-          // request.prefer('return=representation');
-          // request.requestBody({
-          //   intent: 'CAPTURE',
-          //   purchase_units: [
-          //     {
-          //       amount: {
-          //         currency_code: 'USD',
-          //         value: grandTotalUSD.toString(),
-          //         breakdown: {
-          //           item_total: {
-          //             currency_code: 'USD',
-          //             value: subTotalUSD.toString(),
-          //           },
-          //           shipping: {
-          //             currency_code: 'USD',
-          //             value: shippingFeeUSD.toString(),
-          //           },
-          //         },
-          //       },
-          //       payee: {
-          //         merchant_id: 'K44SSKZZBVWCN',
-          //       },
-          //       payment_instruction: {
-          //         disbursement_mode: 'INSTANT',
-          //         platform_fees: [
-          //           {
-          //             amount: {
-          //               currency_code: 'USD',
-          //               value: amountPlatformFee.toString(),
-          //             },
-          //             payee: {
-          //               merchant_id: 'LU9XXKX9PSTRW',
-          //             },
-          //           },
-          //         ],
-          //       },
-          //       items: items,
-          //     },
-          //   ],
-          // });
-          // let subTotalUSD = 0;
-          const subTotalVND = order.subTotal;
+          const exchangeRate = await axios.get(
+            'https://free.currconv.com/api/v7/convert?q=VND_USD&compact=ultra&apiKey=4ea1fc028af307b152e8',
+          );
+          const rate = exchangeRate.data.VND_USD || DEFAULT_EXCHANGE_RATE;
+          let subTotalUSD = 0;
           const items = order.orderItems.map((orderItem) => {
-            console.log(`OrderItem ${orderItem.subTotal.toString()}`);
+            const orderItemPriceUSD = parseFloat(
+              (orderItem.subTotal * rate).toFixed(2),
+            );
+            subTotalUSD += parseFloat(
+              (orderItemPriceUSD * orderItem.quantity).toFixed(2),
+            );
             return {
               name: orderItem.name,
               unit_amount: {
-                currency_code: 'VND',
-                value: orderItem.subTotal.toString(),
+                currency_code: 'USD',
+                value: orderItemPriceUSD.toString(),
               },
               quantity: orderItem.quantity,
             };
           });
-          // subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
-          const shippingFeeVND = order.delivery.shippingFee;
-          const grandTotalVND = order.grandTotal;
-          const amountPlatformFee = Math.trunc(
-            subTotalVND * PERCENT_PLATFORM_FEE + shippingFeeVND,
+          subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
+          const shippingFeeUSD = parseFloat(
+            (order.delivery.shippingFee * rate).toFixed(2),
+          );
+          const grandTotalUSD = parseFloat(
+            (subTotalUSD + shippingFeeUSD).toFixed(2),
+          );
+          const amountPlatformFee = parseFloat(
+            (subTotalUSD * PERCENT_PLATFORM_FEE + shippingFeeUSD).toFixed(2),
           );
 
-          console.log('SubTotalUSD', subTotalVND);
-          console.log('GrandTotalUSD', grandTotalVND);
-          console.log('ShippingFeeUSD', shippingFeeVND);
+          console.log('SubTotalUSD', subTotalUSD);
+          console.log('GrandTotalUSD', grandTotalUSD);
+          console.log('ShippingFeeUSD', shippingFeeUSD);
           console.log('amountPlatformFee', amountPlatformFee);
           console.log('paypalMerchantId', paypalMerchantId);
 
@@ -1207,16 +1137,16 @@ export class OrderService {
             purchase_units: [
               {
                 amount: {
-                  currency_code: 'VND',
-                  value: grandTotalVND.toString(),
+                  currency_code: 'USD',
+                  value: grandTotalUSD.toString(),
                   breakdown: {
                     item_total: {
-                      currency_code: 'VND',
-                      value: subTotalVND.toString(),
+                      currency_code: 'USD',
+                      value: subTotalUSD.toString(),
                     },
                     shipping: {
-                      currency_code: 'VND',
-                      value: shippingFeeVND.toString(),
+                      currency_code: 'USD',
+                      value: shippingFeeUSD.toString(),
                     },
                   },
                 },
@@ -1228,7 +1158,7 @@ export class OrderService {
                   platform_fees: [
                     {
                       amount: {
-                        currency_code: 'VND',
+                        currency_code: 'USD',
                         value: amountPlatformFee.toString(),
                       },
                       payee: {
@@ -1241,6 +1171,76 @@ export class OrderService {
               },
             ],
           });
+          // let subTotalUSD = 0;
+          // const subTotalVND = order.subTotal;
+          // const items = order.orderItems.map((orderItem) => {
+          //   console.log(`OrderItem ${orderItem.subTotal.toString()}`);
+          //   return {
+          //     name: orderItem.name,
+          //     unit_amount: {
+          //       currency_code: 'VND',
+          //       value: orderItem.subTotal.toString(),
+          //     },
+          //     quantity: orderItem.quantity,
+          //   };
+          // });
+          // // subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
+          // const shippingFeeVND = order.delivery.shippingFee;
+          // const grandTotalVND = order.grandTotal;
+          // const amountPlatformFee = Math.trunc(
+          //   subTotalVND * PERCENT_PLATFORM_FEE + shippingFeeVND,
+          // );
+
+          // console.log('SubTotalUSD', subTotalVND);
+          // console.log('GrandTotalUSD', grandTotalVND);
+          // console.log('ShippingFeeUSD', shippingFeeVND);
+          // console.log('amountPlatformFee', amountPlatformFee);
+          // console.log('paypalMerchantId', paypalMerchantId);
+
+          // //TODO: Tạo paypal order
+          // const request = new paypal.orders.OrdersCreateRequest();
+          // request.headers['PayPal-Partner-Attribution-Id'] =
+          //   process.env.PAYPAL_PARTNER_ATTRIBUTION_ID;
+          // request.prefer('return=representation');
+          // request.requestBody({
+          //   intent: 'CAPTURE',
+          //   purchase_units: [
+          //     {
+          //       amount: {
+          //         currency_code: 'VND',
+          //         value: grandTotalVND.toString(),
+          //         breakdown: {
+          //           item_total: {
+          //             currency_code: 'VND',
+          //             value: subTotalVND.toString(),
+          //           },
+          //           shipping: {
+          //             currency_code: 'VND',
+          //             value: shippingFeeVND.toString(),
+          //           },
+          //         },
+          //       },
+          //       payee: {
+          //         merchant_id: 'K44SSKZZBVWCN',
+          //       },
+          //       payment_instruction: {
+          //         disbursement_mode: 'INSTANT',
+          //         platform_fees: [
+          //           {
+          //             amount: {
+          //               currency_code: 'VND',
+          //               value: amountPlatformFee.toString(),
+          //             },
+          //             payee: {
+          //               merchant_id: 'LU9XXKX9PSTRW',
+          //             },
+          //           },
+          //         ],
+          //       },
+          //       items: items,
+          //     },
+          //   ],
+          // });
           const paypalOrder = await client().execute(request);
           //TODO: Tạo đối tượng paypal payment và lưu lại
           const paypalPayment = new PaypalPayment();
