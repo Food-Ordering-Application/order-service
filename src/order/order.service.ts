@@ -1191,8 +1191,8 @@ export class OrderService {
             order.delivery.shippingFee.toFixed(2),
           );
           const grandTotalVND = parseFloat(order.grandTotal.toFixed(2));
-          const amountPlatformFee = parseFloat(
-            (subTotalVND * PERCENT_PLATFORM_FEE + shippingFeeVND).toFixed(2),
+          const amountPlatformFee = Math.trunc(
+            subTotalVND * PERCENT_PLATFORM_FEE + shippingFeeVND,
           );
 
           console.log('SubTotalUSD', subTotalVND);
