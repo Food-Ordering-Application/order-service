@@ -1172,25 +1172,21 @@ export class OrderService {
           //   ],
           // });
           // let subTotalUSD = 0;
-          const subTotalVND = parseFloat(order.subTotal.toFixed(2));
+          const subTotalVND = order.subTotal;
           const items = order.orderItems.map((orderItem) => {
-            console.log(
-              `OrderItem ${orderItem.subTotal.toFixed(2).toString()}`,
-            );
+            console.log(`OrderItem ${orderItem.subTotal.toString()}`);
             return {
               name: orderItem.name,
               unit_amount: {
                 currency_code: 'VND',
-                value: orderItem.subTotal.toFixed(2).toString(),
+                value: orderItem.subTotal.toString(),
               },
               quantity: orderItem.quantity,
             };
           });
           // subTotalUSD = parseFloat(subTotalUSD.toFixed(2));
-          const shippingFeeVND = parseFloat(
-            order.delivery.shippingFee.toFixed(2),
-          );
-          const grandTotalVND = parseFloat(order.grandTotal.toFixed(2));
+          const shippingFeeVND = order.delivery.shippingFee;
+          const grandTotalVND = order.grandTotal;
           const amountPlatformFee = Math.trunc(
             subTotalVND * PERCENT_PLATFORM_FEE + shippingFeeVND,
           );
