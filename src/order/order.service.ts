@@ -11,6 +11,8 @@ import * as paypal from '@paypal/checkout-server-sdk';
 import axios from 'axios';
 import * as moment from 'moment';
 import * as momenttimezone from 'moment-timezone';
+import { throwError, TimeoutError } from 'rxjs';
+import { catchError, timeout } from 'rxjs/operators';
 import {
   Connection,
   QueryRunner,
@@ -24,8 +26,6 @@ import {
   RESTAURANT_SERVICE,
   USER_SERVICE,
 } from '../constants';
-import { catchError, timeout } from 'rxjs/operators';
-import { throwError, TimeoutError } from 'rxjs';
 import { CacheService } from './../cache/cache.service';
 import { OrderFulfillmentService } from './../order-fulfillment/order-fulfillment.service';
 import { DEFAULT_EXCHANGE_RATE, PERCENT_PLATFORM_FEE } from './constants';
@@ -98,7 +98,9 @@ import {
   ICityAreaData,
   IConfirmOrderCheckoutResponse,
   ICreateOrderResponse,
+  ICustomerOrder,
   ICustomerOrdersResponse,
+  IFeedback,
   IGetOrderRatingInfosResponse,
   IIsAutoConfirmResponse,
   IOrder,
@@ -719,10 +721,22 @@ export class OrderService {
         };
       }
 
+      if (order?.status !== OrdStatus.COMPLETED) {
+        return {
+          status: HttpStatus.OK,
+          message: 'Order fetched successfully',
+          order,
+        };
+      }
+
+      const feedbacks = await this.getFeedbackOfOrders([orderId]);
+      const feedback: IFeedback =
+        Array.isArray(feedbacks) && feedbacks.length ? feedbacks[0] : null;
+
       return {
         status: HttpStatus.OK,
         message: 'Order fetched successfully',
-        order,
+        order: { ...order, feedback },
       };
     } catch (error) {
       this.logger.error(error);
@@ -983,7 +997,6 @@ export class OrderService {
       invoice.invoiceNumber = uniqid('invoice-');
       order.invoice = invoice;
       console.log('getting is autoconfirm');
-      console.log({ user: this.userServiceClient });
       const values = await Promise.all([
         this.userServiceClient
           .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
@@ -1586,11 +1599,47 @@ export class OrderService {
 
     const orders = await orderQueryBuilder.getMany();
 
-    return {
-      status: HttpStatus.OK,
-      message: 'Fetch orders of customer successfully',
-      orders: orders,
-    };
+    const completedOrderIds = orders.reduce((prev, cur) => {
+      if (cur?.status === OrdStatus.COMPLETED) {
+        prev.push(cur.id);
+      }
+      return prev;
+    }, [] as string[]);
+    if (!completedOrderIds.length) {
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: orders,
+      };
+    }
+
+    // try to get feedback
+    try {
+      const feedbacks = await this.getFeedbackOfOrders(completedOrderIds);
+      const ordersWithFeedback: (ICustomerOrder & { feedback?: IFeedback })[] =
+        orders.map((order) => {
+          const feedback = feedbacks.find(
+            (feedback) => order?.id === feedback?.orderId,
+          );
+          return {
+            ...order,
+            feedback: feedback || null,
+          };
+        });
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: ordersWithFeedback,
+      };
+    } catch (e) {
+      console.log('Cannot get feedbacks: ' + e.message);
+      return {
+        status: HttpStatus.OK,
+        message: 'Fetch orders of customer successfully',
+        orders: orders,
+      };
+    }
   }
 
   async getOnGoingOrdersOfCustomer(
@@ -2033,5 +2082,29 @@ export class OrderService {
         restaurantId,
       },
     };
+  }
+
+  async getFeedbackOfOrders(orderIds: string[]): Promise<IFeedback[]> {
+    const response = await this.userServiceClient
+      .send('getFeedbackOfOrders', {
+        orderIds: orderIds,
+      })
+      .pipe(
+        timeout(3000),
+        catchError((err) => {
+          if (err instanceof TimeoutError) {
+            return null;
+          }
+          return throwError({ message: err });
+        }),
+      )
+      .toPromise();
+    if (!response || !response?.data?.feedbacks) {
+      return null;
+    }
+    const {
+      data: { feedbacks = [] },
+    } = response;
+    return feedbacks;
   }
 }
