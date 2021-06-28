@@ -1128,7 +1128,7 @@ export class OrderService {
         promises2.push(updatePaymentPromise);
       }
 
-      await Promise.all([promises2.map((callback) => callback())]);
+      await Promise.all(promises2.map((callback) => callback()));
       console.log('BEFORE SWITCH');
 
       switch (paymentMethod) {
