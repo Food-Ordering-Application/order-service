@@ -976,16 +976,6 @@ export class OrderService {
         }
         order.createdAt = new Date();
       }
-      // //TODO: Nếu đã tạo paypalOrderId rồi
-      // if (paymentMethod === PaymentMethod.PAYPAL) {
-      //   if (order.invoice) {
-      //     return {
-      //       status: HttpStatus.OK,
-      //       message: 'Confirm order checkout successfully',
-      //       paypalOrderId: order.invoice.payment.paypalPayment.paypalOrderId,
-      //     };
-      //   }
-      // }
       //TODO: Thêm note cho order nếu có
       if (note) {
         order.note = note;
@@ -1071,16 +1061,17 @@ export class OrderService {
       console.log('here');
       //TODO: Nếu order chưa lưu deliveryLocation
       const promises2: (() => Promise<any>)[] = [];
+      let deliveryLocation;
       if (!order?.deliveryLocation) {
         console.log('NOT HAVING DELIVERY LOCATION');
-        const deliveryLocation = new DeliveryLocation();
+        deliveryLocation = new DeliveryLocation();
         deliveryLocation.cityId = values[cityDataIndex].data.city.id;
         deliveryLocation.cityName = values[cityDataIndex].data.city.name;
         deliveryLocation.areaId =
           values[cityDataIndex].data.city.districts[0].id;
         deliveryLocation.areaName =
           values[cityDataIndex].data.city.districts[0].name;
-        deliveryLocation.orderId = order.id;
+        deliveryLocation.order = order;
         //* Create deliveryLocation promise
         const createDeliveryLocationPromise = () =>
           queryRunner.manager.save(DeliveryLocation, deliveryLocation);
@@ -1138,6 +1129,7 @@ export class OrderService {
       }
 
       await Promise.all(promises2.map((callback) => callback()));
+      console.log('deliveryLocation', deliveryLocation);
       console.log('BEFORE SWITCH');
 
       switch (paymentMethod) {
