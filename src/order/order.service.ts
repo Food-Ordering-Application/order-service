@@ -1158,8 +1158,8 @@ export class OrderService {
 
           console.log('isAutoConfirm', isAutoConfirm);
           console.log('isMerchantNotAvailable', isMerchantNotAvailable);
-          const doesPlaceOrder = isAutoConfirm || isMerchantNotAvailable;
-          if (doesPlaceOrder) {
+          const doesConfirmOrder = isAutoConfirm || isMerchantNotAvailable;
+          if (doesConfirmOrder) {
             console.log('AUTOCONFIRM ORDER');
             //* handleAutoConfirmOrder promise
             const handleAutoConfirmOrderPromise = () =>
@@ -1175,10 +1175,10 @@ export class OrderService {
           await Promise.all(promises3.map((callback) => callback()));
           console.log('PromiseALL');
           await queryRunner.commitTransaction();
-          if (doesPlaceOrder) {
-            this.orderFulfillmentService.sendPlaceOrderEvent(order);
-          } else {
+          if (doesConfirmOrder) {
             this.orderFulfillmentService.sendConfirmOrderEvent(order);
+          } else {
+            this.orderFulfillmentService.sendPlaceOrderEvent(order);
           }
           console.log('commit ok');
           return {
@@ -1391,8 +1391,8 @@ export class OrderService {
       order.invoice.payment.paypalPayment.captureId = captureID;
       //TODO: Đổi trạng thái payment sang đang xử lý
       order.invoice.payment.status = PaymentStatus.PROCESSING;
-      const doesPlaceOrder = values[0].isAutoConfirm;
-      if (!doesPlaceOrder) {
+      const doesConfirmOrder = values[0].isAutoConfirm;
+      if (doesConfirmOrder) {
         // order.cashierId = cashierId;
         await Promise.all([
           queryRunner.manager.save(
@@ -1415,10 +1415,10 @@ export class OrderService {
 
       await queryRunner.commitTransaction();
 
-      if (doesPlaceOrder) {
-        this.orderFulfillmentService.sendPlaceOrderEvent(order);
-      } else {
+      if (doesConfirmOrder) {
         this.orderFulfillmentService.sendConfirmOrderEvent(order);
+      } else {
+        this.orderFulfillmentService.sendPlaceOrderEvent(order);
       }
       return {
         status: HttpStatus.OK,
