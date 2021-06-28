@@ -1158,7 +1158,8 @@ export class OrderService {
 
           console.log('isAutoConfirm', isAutoConfirm);
           console.log('isMerchantNotAvailable', isMerchantNotAvailable);
-          if (isAutoConfirm || isMerchantNotAvailable) {
+          const doesPlaceOrder = isAutoConfirm || isMerchantNotAvailable;
+          if (doesPlaceOrder) {
             console.log('AUTOCONFIRM ORDER');
             //* handleAutoConfirmOrder promise
             const handleAutoConfirmOrderPromise = () =>
@@ -1174,6 +1175,11 @@ export class OrderService {
           await Promise.all(promises3.map((callback) => callback()));
           console.log('PromiseALL');
           await queryRunner.commitTransaction();
+          if (doesPlaceOrder) {
+            this.orderFulfillmentService.sendPlaceOrderEvent(order);
+          } else {
+            this.orderFulfillmentService.sendConfirmOrderEvent(order);
+          }
           console.log('commit ok');
           return {
             status: HttpStatus.OK,
@@ -1385,8 +1391,8 @@ export class OrderService {
       order.invoice.payment.paypalPayment.captureId = captureID;
       //TODO: Đổi trạng thái payment sang đang xử lý
       order.invoice.payment.status = PaymentStatus.PROCESSING;
-
-      if (values[0].isAutoConfirm) {
+      const doesPlaceOrder = values[0].isAutoConfirm;
+      if (!doesPlaceOrder) {
         // order.cashierId = cashierId;
         await Promise.all([
           queryRunner.manager.save(
@@ -1409,6 +1415,11 @@ export class OrderService {
 
       await queryRunner.commitTransaction();
 
+      if (doesPlaceOrder) {
+        this.orderFulfillmentService.sendPlaceOrderEvent(order);
+      } else {
+        this.orderFulfillmentService.sendConfirmOrderEvent(order);
+      }
       return {
         status: HttpStatus.OK,
         message: 'Approve paypal order successfully',
@@ -1458,7 +1469,6 @@ export class OrderService {
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
     console.log('save ok');
-    this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 
   async getListOrderOfDriver(
@@ -1801,7 +1811,6 @@ export class OrderService {
       queryRunner.manager.save(Order, order),
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
-    this.orderFulfillmentService.sendConfirmOrderEvent(order);
   }
 
   async getRestaurantStatistic(
