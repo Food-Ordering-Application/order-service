@@ -1080,7 +1080,7 @@ export class OrderService {
           values[cityDataIndex].data.city.districts[0].id;
         deliveryLocation.areaName =
           values[cityDataIndex].data.city.districts[0].name;
-        deliveryLocation.order = order;
+        deliveryLocation.orderId = order.id;
         //* Create deliveryLocation promise
         const createDeliveryLocationPromise = () =>
           queryRunner.manager.save(DeliveryLocation, deliveryLocation);
