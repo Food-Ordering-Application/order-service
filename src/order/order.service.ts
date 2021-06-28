@@ -1161,11 +1161,12 @@ export class OrderService {
             const handleAutoConfirmOrderPromise = () =>
               this.handleAutoConfirmOrder(order, queryRunner);
             promises3.push(handleAutoConfirmOrderPromise);
+            // await this.handleAutoConfirmOrder(order, queryRunner);
           } else {
             console.log('PlaceOrder');
             //* placeOrder promise
             const placeOrderPromise = async () =>
-              await this.placeOrder(order, queryRunner);
+              this.placeOrder(order, queryRunner);
             promises3.push(placeOrderPromise);
           }
           console.log('COD OK');
