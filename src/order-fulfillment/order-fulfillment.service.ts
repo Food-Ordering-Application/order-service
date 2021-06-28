@@ -186,13 +186,13 @@ export class OrderFulfillmentService {
       };
     }
 
-    if (order.delivery?.status != DeliveryStatus.DRAFT) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message:
-          'Cannot confirm order. Delivery status not valid to confirm order',
-      };
-    }
+    // if (order.delivery?.status != DeliveryStatus.DRAFT) {
+    //   return {
+    //     status: HttpStatus.BAD_REQUEST,
+    //     message:
+    //       'Cannot confirm order. Delivery status not valid to confirm order',
+    //   };
+    // }
 
     order.cashierId = cashierId;
     order.status = OrdStatus.CONFIRMED;
