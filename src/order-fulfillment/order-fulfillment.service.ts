@@ -81,9 +81,41 @@ export class OrderFulfillmentService {
       filteredOrder(order, allowed),
     );
 
+    const orderPayload = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.delivery', 'delivery')
+      .leftJoinAndSelect('order.invoice', 'invoice')
+      .leftJoinAndSelect('invoice.payment', 'payment')
+      .where('order.id = :orderId', {
+        orderId: order.id,
+      })
+      // .andWhere('order.restaurantId = :restaurantId', {
+      //   restaurantId: restaurantId,
+      // })
+      .select([
+        'order.id',
+        'order.restaurantId',
+        'order.cashierId',
+        'order.status',
+        'order.subTotal',
+        'order.grandTotal',
+        'delivery',
+        'invoice.id',
+        'payment.method',
+      ])
+      .getOne();
+    try {
+      console.log({
+        order,
+        orderPayload,
+        payload: OrderEventPayload.toPayload(orderPayload),
+      });
+    } catch (e) {
+      console.log(e.message);
+    }
     this.deliveryServiceClient.emit(
       'orderConfirmedByRestaurantEvent',
-      OrderEventPayload.toPayload(order),
+      orderPayload,
     );
     this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
   }
