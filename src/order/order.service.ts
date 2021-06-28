@@ -1167,7 +1167,9 @@ export class OrderService {
           }
           console.log('COD OK');
           await Promise.all([promises3.map((callback) => callback())]);
+          console.log('PromiseALL');
           await queryRunner.commitTransaction();
+          console.log('commit ok');
           return {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
