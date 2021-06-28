@@ -1100,6 +1100,7 @@ export class OrderService {
         payment = new Payment();
         payment.amount = calculateOrderGrandToTal(order);
         payment.invoice = invoice;
+        invoice.payment = payment;
         if (paymentMethod === PaymentMethod.COD) {
           payment.status = PaymentStatus.PROCESSING;
         } else {
