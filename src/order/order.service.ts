@@ -996,7 +996,8 @@ export class OrderService {
       //TODO: Nếu order chưa có invoice (Trường hợp lần đầu ấn đặt hàng)
       let invoice: Invoice;
       let cityDataIndex = 2;
-      if (!order.invoice) {
+      if (!order?.invoice) {
+        console.log('NOT HAVING INVOICE');
         invoice = new Invoice();
         invoice.order = order;
         invoice.status = InvoiceStatus.UNPAID;
@@ -1070,7 +1071,8 @@ export class OrderService {
       console.log('here');
       //TODO: Nếu order chưa lưu deliveryLocation
       const promises2: (() => Promise<any>)[] = [];
-      if (!order.deliveryLocation) {
+      if (!order?.deliveryLocation) {
+        console.log('NOT HAVING DELIVERY LOCATION');
         const deliveryLocation = new DeliveryLocation();
         deliveryLocation.cityId = values[cityDataIndex].data.city.id;
         deliveryLocation.cityName = values[cityDataIndex].data.city.name;
@@ -1086,6 +1088,7 @@ export class OrderService {
       } else {
         //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
         //TODO: Nếu có rồi thì update lại
+        console.log('ALREADY HAVE DELIVERY LOCATION');
         order.deliveryLocation.cityId = values[cityDataIndex].data.city.id;
         order.deliveryLocation.cityName = values[cityDataIndex].data.city.name;
         order.deliveryLocation.areaId =
@@ -1100,7 +1103,8 @@ export class OrderService {
 
       let payment: Payment;
       //TODO: Nếu order chưa lưu payment
-      if (!order.invoice.payment) {
+      if (!order?.invoice?.payment) {
+        console.log('NOT HAVING PAYMENT');
         //TODO: Tạo và lưu Payment
         payment = new Payment();
         payment = setPayment(payment, order, invoice, paymentMethod);
@@ -1111,6 +1115,7 @@ export class OrderService {
       } else {
         //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
         //TODO: Nếu có rồi thì update lại
+        console.log('ALREADY HAVE PAYMENT');
         order.invoice.payment = setPayment(
           order.invoice.payment,
           order,
@@ -1132,7 +1137,7 @@ export class OrderService {
           const promises3: (() => Promise<any>)[] = [];
 
           //TODO: Nếu có lưu paypalPayment thì xóa
-          if (order.invoice.payment.paypalPayment) {
+          if (order?.invoice?.payment?.paypalPayment) {
             //* Remove paypalPayment promise
             const removePaypalPayment = () =>
               queryRunner.manager.remove(
@@ -1262,13 +1267,15 @@ export class OrderService {
           });
           const paypalOrder = await client().execute(request);
           //TODO: Nếu chưa lưu paypalPayment
-          if (!order.invoice.payment.paypalPayment) {
+          if (!order.invoice?.payment?.paypalPayment) {
+            console.log('NOT HAVING PAYPAL PAYMENT');
             const paypalPayment = new PaypalPayment();
             paypalPayment.paypalOrderId = paypalOrder.result.id;
             paypalPayment.payment = payment;
             await queryRunner.manager.save(PaypalPayment, paypalPayment);
           } else {
             //TODO: Nếu lưu rồi thì update lại
+            console.log('ALREADY PAYPALPAYMENT');
             order.invoice.payment.paypalPayment.paypalOrderId =
               paypalOrder.result.id;
             await queryRunner.manager.save(
