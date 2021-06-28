@@ -976,16 +976,16 @@ export class OrderService {
         }
         order.createdAt = new Date();
       }
-      //TODO: Nếu đã tạo paypalOrderId rồi
-      if (paymentMethod === PaymentMethod.PAYPAL) {
-        if (order.invoice) {
-          return {
-            status: HttpStatus.OK,
-            message: 'Confirm order checkout successfully',
-            paypalOrderId: order.invoice.payment.paypalPayment.paypalOrderId,
-          };
-        }
-      }
+      // //TODO: Nếu đã tạo paypalOrderId rồi
+      // if (paymentMethod === PaymentMethod.PAYPAL) {
+      //   if (order.invoice) {
+      //     return {
+      //       status: HttpStatus.OK,
+      //       message: 'Confirm order checkout successfully',
+      //       paypalOrderId: order.invoice.payment.paypalPayment.paypalOrderId,
+      //     };
+      //   }
+      // }
       //TODO: Thêm note cho order nếu có
       if (note) {
         order.note = note;
