@@ -38,6 +38,7 @@ import {
 import { PayPalClient } from './helpers/paypal-refund-helper';
 
 import { allowed, filteredOrder } from '../shared/filteredOrder';
+import { OrderEventPayload } from './events/dispatch-driver-order.event';
 @Injectable()
 export class OrderFulfillmentService {
   constructor(
@@ -80,7 +81,10 @@ export class OrderFulfillmentService {
       filteredOrder(order, allowed),
     );
 
-    this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', order);
+    this.deliveryServiceClient.emit(
+      'orderConfirmedByRestaurantEvent',
+      OrderEventPayload.toPayload(order),
+    );
     this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
   }
 
