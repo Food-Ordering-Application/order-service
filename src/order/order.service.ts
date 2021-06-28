@@ -1447,11 +1447,12 @@ export class OrderService {
       preparationTime,
       order.delivery.distance,
     );
-
+    console.log('save order and delivery in placeOrder');
     await Promise.all([
       queryRunner.manager.save(Order, order),
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
+    console.log('save ok');
     this.orderFulfillmentService.sendPlaceOrderEvent(order);
   }
 
