@@ -1058,13 +1058,14 @@ export class OrderService {
       );
 
       const values = await Promise.all(promises.map((callback) => callback()));
+      console.log('values[2]', values[2]);
       //TODO: Nếu không có dữ liệu city và area
       if (!values[2].data.city) {
         throw new Error(
           'Cannot find city and area information from customer lat and long',
         );
       }
-
+      console.log('here');
       //TODO: Nếu order chưa lưu deliveryLocation
       const promises2: (() => Promise<any>)[] = [];
       if (!order.deliveryLocation) {
