@@ -1107,7 +1107,14 @@ export class OrderService {
         console.log('NOT HAVING PAYMENT');
         //TODO: Tạo và lưu Payment
         payment = new Payment();
-        payment = setPayment(payment, order, invoice, paymentMethod);
+        payment.amount = calculateOrderGrandToTal(order);
+        payment.invoice = invoice;
+        if (paymentMethod === PaymentMethod.COD) {
+          payment.status = PaymentStatus.PROCESSING;
+        } else {
+          payment.status = PaymentStatus.PENDING_USER_ACTION;
+        }
+        payment.method = paymentMethod;
         //* Create payment promise
         const createPaymentPromise = () =>
           queryRunner.manager.save(Payment, payment);
@@ -1116,12 +1123,14 @@ export class OrderService {
         //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
         //TODO: Nếu có rồi thì update lại
         console.log('ALREADY HAVE PAYMENT');
-        order.invoice.payment = setPayment(
-          order.invoice.payment,
-          order,
-          order.invoice,
-          paymentMethod,
-        );
+        order.invoice.payment.amount = calculateOrderGrandToTal(order);
+        order.invoice.payment.invoice = invoice;
+        if (paymentMethod === PaymentMethod.COD) {
+          order.invoice.payment.status = PaymentStatus.PROCESSING;
+        } else {
+          order.invoice.payment.status = PaymentStatus.PENDING_USER_ACTION;
+        }
+        order.invoice.payment.method = paymentMethod;
         //* Update payment promise
         const updatePaymentPromise = () =>
           queryRunner.manager.save(Payment, order.invoice.payment);
@@ -1158,16 +1167,14 @@ export class OrderService {
           if (isAutoConfirm || isMerchantNotAvailable) {
             console.log('AUTOCONFIRM ORDER');
             //* handleAutoConfirmOrder promise
-            // const handleAutoConfirmOrderPromise = () =>
-            //   this.handleAutoConfirmOrder(order, queryRunner);
-            // promises3.push(handleAutoConfirmOrderPromise);
-            await this.handleAutoConfirmOrder(order, queryRunner);
+            const handleAutoConfirmOrderPromise = () =>
+              this.handleAutoConfirmOrder(order, queryRunner);
+            promises3.push(handleAutoConfirmOrderPromise);
           } else {
             console.log('PlaceOrder');
             //* placeOrder promise
-            // const placeOrderPromise = () => this.placeOrder(order, queryRunner);
-            // promises3.push(placeOrderPromise);
-            await this.placeOrder(order, queryRunner);
+            const placeOrderPromise = () => this.placeOrder(order, queryRunner);
+            promises3.push(placeOrderPromise);
           }
           console.log('COD OK');
           await Promise.all(promises3.map((callback) => callback()));
