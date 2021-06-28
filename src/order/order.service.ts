@@ -1129,9 +1129,11 @@ export class OrderService {
       }
 
       await Promise.all(promises2.map((callback) => callback()));
-      console.log('deliveryLocation', deliveryLocation);
-      console.log('BEFORE SWITCH');
+      if (deliveryLocation) {
+        order.deliveryLocation = deliveryLocation;
+      }
 
+      console.log('BEFORE SWITCH');
       switch (paymentMethod) {
         case PaymentMethod.COD:
           console.log('BEGIN COD');
