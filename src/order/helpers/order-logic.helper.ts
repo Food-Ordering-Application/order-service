@@ -8,8 +8,15 @@ import {
   OrderItem as OrderItemDto,
   OrderItemTopping as OrderItemToppingDto,
 } from '../dto';
-import { OrderItemTopping, OrderItem, Order, Delivery } from '../entities';
-import { State } from '../enums';
+import {
+  OrderItemTopping,
+  OrderItem,
+  Order,
+  Delivery,
+  Invoice,
+  Payment,
+} from '../entities';
+import { PaymentMethod, PaymentStatus, State } from '../enums';
 import { Coordinate, Geo } from './geo.helper';
 
 export const createAndStoreOrderItem = async (
@@ -225,3 +232,20 @@ export const calculateExpectedDeliveryTime = (
 };
 
 export const getPreparationTime = (order: Order) => 15;
+
+export const setPayment = (
+  payment: Payment,
+  order: Order,
+  invoice: Invoice,
+  paymentMethod: string,
+) => {
+  payment.amount = calculateOrderGrandToTal(order);
+  payment.invoice = invoice;
+  if (paymentMethod === PaymentMethod.COD) {
+    payment.status = PaymentStatus.PROCESSING;
+  } else {
+    payment.status = PaymentStatus.PENDING_USER_ACTION;
+  }
+  payment.method = paymentMethod;
+  return payment;
+};

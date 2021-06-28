@@ -87,6 +87,7 @@ import {
   findOrderItem,
   findOrderItemIndex,
   getPreparationTime,
+  setPayment,
 } from './helpers/order-logic.helper';
 import {
   getMenuItemQuery,
@@ -946,6 +947,7 @@ export class OrderService {
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.deliveryLocation', 'deliveryLocation')
         .leftJoinAndSelect('order.orderItems', 'ordItems')
         .leftJoinAndSelect('ordItems.orderItemToppings', 'ordItemToppings')
         .leftJoinAndSelect('order.invoice', 'invoice')
@@ -989,15 +991,24 @@ export class OrderService {
         order.note = note;
       }
 
-      //TODO: Tạo invoice, payment entity với phương thức thanh toán
       //TODO: Lấy thông tin city và area nơi người dùng đặt
-      const invoice = new Invoice();
-      invoice.order = order;
-      invoice.status = InvoiceStatus.UNPAID;
-      invoice.invoiceNumber = uniqid('invoice-');
-      order.invoice = invoice;
-      console.log('getting is autoconfirm');
-      const values = await Promise.all([
+      const promises: (() => Promise<any>)[] = [];
+      //TODO: Nếu order chưa có invoice (Trường hợp lần đầu ấn đặt hàng)
+      let invoice: Invoice;
+      if (!order.invoice) {
+        invoice = new Invoice();
+        invoice.order = order;
+        invoice.status = InvoiceStatus.UNPAID;
+        invoice.invoiceNumber = uniqid('invoice-');
+        order.invoice = invoice;
+        //* Save invoice promise
+        const saveInvoicePromise = () =>
+          queryRunner.manager.save(Invoice, invoice);
+        promises.push(saveInvoicePromise);
+      }
+
+      //* getIsAutoConfirmPromise, saveOrderPromise,  getCityFromLocationPromise
+      const getIsAutoConfirmPromise = () =>
         this.userServiceClient
           .send('getIsAutoConfirm', { restaurantId: order.restaurantId })
           .pipe(
@@ -1013,9 +1024,11 @@ export class OrderService {
               return throwError({ message: err });
             }),
           )
-          .toPromise(),
-        queryRunner.manager.save(Order, order),
-        queryRunner.manager.save(Invoice, invoice),
+          .toPromise();
+
+      const saveOrderPromise = () => queryRunner.manager.save(Order, order);
+
+      const getCityFromLocationPromise = () =>
         this.restaurantServiceClient
           .send('getCityFromLocation', {
             position: {
@@ -1036,39 +1049,92 @@ export class OrderService {
               return throwError({ message: err });
             }),
           )
-          .toPromise(),
-      ]);
-      console.log('get is autoconfirm ok');
-      console.log('values', values[0].isAutoConfirm);
-      console.log('values[3]', values[3]);
-      //TODO: Tạo và lưu DeliveryLocation
-      if (!values[3].data.city) {
+          .toPromise();
+
+      promises.push(
+        getIsAutoConfirmPromise,
+        saveOrderPromise,
+        getCityFromLocationPromise,
+      );
+
+      const values = await Promise.all(promises.map((callback) => callback()));
+      //TODO: Nếu không có dữ liệu city và area
+      if (!values[2].data.city) {
         throw new Error(
           'Cannot find city and area information from customer lat and long',
         );
       }
-      const deliveryLocation = new DeliveryLocation();
-      deliveryLocation.cityId = values[3].data.city.id;
-      deliveryLocation.cityName = values[3].data.city.name;
-      deliveryLocation.areaId = values[3].data.city.districts[0].id;
-      deliveryLocation.areaName = values[3].data.city.districts[0].name;
-      deliveryLocation.order = order;
 
-      //TODO: Tạo và lưu Payment
-      const payment = new Payment();
-      payment.amount = calculateOrderGrandToTal(order);
-      payment.invoice = invoice;
-      payment.status = PaymentStatus.PENDING_USER_ACTION;
-      payment.method = paymentMethod;
-      await Promise.all([
-        queryRunner.manager.save(Payment, payment),
-        queryRunner.manager.save(DeliveryLocation, deliveryLocation),
-      ]);
+      //TODO: Nếu order chưa lưu deliveryLocation
+      const promises2: (() => Promise<any>)[] = [];
+      if (!order.deliveryLocation) {
+        const deliveryLocation = new DeliveryLocation();
+        deliveryLocation.cityId = values[2].data.city.id;
+        deliveryLocation.cityName = values[2].data.city.name;
+        deliveryLocation.areaId = values[2].data.city.districts[0].id;
+        deliveryLocation.areaName = values[2].data.city.districts[0].name;
+        deliveryLocation.order = order;
+        //* Create deliveryLocation promise
+        const createDeliveryLocationPromise = () =>
+          queryRunner.manager.save(DeliveryLocation, deliveryLocation);
+        promises2.push(createDeliveryLocationPromise);
+      } else {
+        //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
+        //TODO: Nếu có rồi thì update lại
+        order.deliveryLocation.cityId = values[2].data.city.id;
+        order.deliveryLocation.cityName = values[2].data.city.name;
+        order.deliveryLocation.areaId = values[2].data.city.districts[0].id;
+        order.deliveryLocation.areaName = values[2].data.city.districts[0].name;
+        //* Update deliveryLocation promise
+        const updateDeliveryLocationPromise = () =>
+          queryRunner.manager.save(DeliveryLocation, order.deliveryLocation);
+        promises2.push(updateDeliveryLocationPromise);
+      }
+
+      let payment: Payment;
+      //TODO: Nếu order chưa lưu payment
+      if (!order.invoice.payment) {
+        //TODO: Tạo và lưu Payment
+        payment = new Payment();
+        payment = setPayment(payment, order, invoice, paymentMethod);
+        //* Create payment promise
+        const createPaymentPromise = () =>
+          queryRunner.manager.save(Payment, payment);
+        promises2.push(createPaymentPromise);
+      } else {
+        //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
+        //TODO: Nếu có rồi thì update lại
+        order.invoice.payment = setPayment(
+          order.invoice.payment,
+          order,
+          order.invoice,
+          paymentMethod,
+        );
+        //* Update payment promise
+        const updatePaymentPromise = () =>
+          queryRunner.manager.save(Payment, order.invoice.payment);
+        promises2.push(updatePaymentPromise);
+      }
+
+      await Promise.all([promises2.map((callback) => callback())]);
       console.log('BEFORE SWITCH');
 
       switch (paymentMethod) {
         case PaymentMethod.COD:
           console.log('BEGIN COD');
+          const promises3: (() => Promise<any>)[] = [];
+
+          //TODO: Nếu có lưu paypalPayment thì xóa
+          if (order.invoice.payment.paypalPayment) {
+            //* Remove paypalPayment promise
+            const removePaypalPayment = () =>
+              queryRunner.manager.remove(
+                PaypalPayment,
+                order.invoice.payment.paypalPayment,
+              );
+            promises3.push(removePaypalPayment);
+          }
+
           const { status, isAutoConfirm } = values[0];
           const isMerchantNotAvailable =
             status === HttpStatus.NOT_FOUND ||
@@ -1078,11 +1144,17 @@ export class OrderService {
           console.log('isAutoConfirm', isAutoConfirm);
           console.log('isMerchantNotAvailable', isMerchantNotAvailable);
           if (isAutoConfirm || isMerchantNotAvailable) {
-            await this.handleAutoConfirmOrder(order, queryRunner);
+            //* handleAutoConfirmOrder promise
+            const handleAutoConfirmOrderPromise = () =>
+              this.handleAutoConfirmOrder(order, queryRunner);
+            promises3.push(handleAutoConfirmOrderPromise);
           } else {
-            await this.placeOrder(order, queryRunner);
+            //* placeOrder promise
+            const placeOrderPromise = () => this.placeOrder(order, queryRunner);
+            promises3.push(placeOrderPromise);
           }
           console.log('COD OK');
+          await Promise.all([promises3.map((callback) => callback())]);
           await queryRunner.commitTransaction();
           return {
             status: HttpStatus.OK,
@@ -1153,7 +1225,7 @@ export class OrderService {
                   },
                 },
                 payee: {
-                  merchant_id: 'K44SSKZZBVWCN',
+                  merchant_id: paypalMerchantId,
                 },
                 payment_instruction: {
                   disbursement_mode: 'INSTANT',
@@ -1164,7 +1236,7 @@ export class OrderService {
                         value: amountPlatformFee.toString(),
                       },
                       payee: {
-                        merchant_id: 'LU9XXKX9PSTRW',
+                        merchant_id: process.env.PAYPAL_PARTNER_MERCHANT_ID,
                       },
                     },
                   ],
@@ -1174,11 +1246,22 @@ export class OrderService {
             ],
           });
           const paypalOrder = await client().execute(request);
-          //TODO: Tạo đối tượng paypal payment và lưu lại
-          const paypalPayment = new PaypalPayment();
-          paypalPayment.paypalOrderId = paypalOrder.result.id;
-          paypalPayment.payment = payment;
-          await queryRunner.manager.save(PaypalPayment, paypalPayment);
+          //TODO: Nếu chưa lưu paypalPayment
+          if (!order.invoice.payment.paypalPayment) {
+            const paypalPayment = new PaypalPayment();
+            paypalPayment.paypalOrderId = paypalOrder.result.id;
+            paypalPayment.payment = payment;
+            await queryRunner.manager.save(PaypalPayment, paypalPayment);
+          } else {
+            //TODO: Nếu lưu rồi thì update lại
+            order.invoice.payment.paypalPayment.paypalOrderId =
+              paypalOrder.result.id;
+            await queryRunner.manager.save(
+              PaypalPayment,
+              order.invoice.payment.paypalPayment,
+            );
+          }
+
           await queryRunner.commitTransaction();
           return {
             status: HttpStatus.OK,
