@@ -1158,16 +1158,16 @@ export class OrderService {
           if (isAutoConfirm || isMerchantNotAvailable) {
             console.log('AUTOCONFIRM ORDER');
             //* handleAutoConfirmOrder promise
-            const handleAutoConfirmOrderPromise = () =>
-              this.handleAutoConfirmOrder(order, queryRunner);
-            promises3.push(handleAutoConfirmOrderPromise);
-            // await this.handleAutoConfirmOrder(order, queryRunner);
+            // const handleAutoConfirmOrderPromise = () =>
+            //   this.handleAutoConfirmOrder(order, queryRunner);
+            // promises3.push(handleAutoConfirmOrderPromise);
+            await this.handleAutoConfirmOrder(order, queryRunner);
           } else {
             console.log('PlaceOrder');
             //* placeOrder promise
-            const placeOrderPromise = async () =>
-              this.placeOrder(order, queryRunner);
-            promises3.push(placeOrderPromise);
+            // const placeOrderPromise = () => this.placeOrder(order, queryRunner);
+            // promises3.push(placeOrderPromise);
+            await this.placeOrder(order, queryRunner);
           }
           console.log('COD OK');
           await Promise.all(promises3.map((callback) => callback()));
