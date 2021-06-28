@@ -136,7 +136,9 @@ export class OrderFulfillmentService {
       orderId: order.id,
       deliveryId: order.delivery.id,
       shippingFee: order.delivery.shippingFee,
-      deliveryDistance: order.delivery.distance,
+      deliveryDistance: order.delivery.totalDeliveryDistance
+        ? order.delivery.totalDeliveryDistance
+        : order.delivery.distance,
     });
 
     this.deliveryServiceClient.emit(
@@ -441,7 +443,8 @@ export class OrderFulfillmentService {
   async handleUpdateDriverForOrder(
     updateDriverForOrderEventPayload: UpdateDriverForOrderEventPayload,
   ) {
-    const { orderId, driverId } = updateDriverForOrderEventPayload;
+    const { orderId, driverId, totalDistance, estimatedArrivalTime } =
+      updateDriverForOrderEventPayload;
 
     const order = await this.orderRepository
       .createQueryBuilder('order')
@@ -468,6 +471,7 @@ export class OrderFulfillmentService {
 
     order.delivery.driverId = driverId;
     order.delivery.status = DeliveryStatus.ON_GOING;
+    order.delivery.totalDeliveryDistance = totalDistance;
     await this.deliveryRepository.save(order.delivery);
 
     console.dir(order, { depth: 3 });
