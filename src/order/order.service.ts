@@ -995,6 +995,7 @@ export class OrderService {
       const promises: (() => Promise<any>)[] = [];
       //TODO: Nếu order chưa có invoice (Trường hợp lần đầu ấn đặt hàng)
       let invoice: Invoice;
+      let cityDataIndex = 2;
       if (!order.invoice) {
         invoice = new Invoice();
         invoice.order = order;
@@ -1005,6 +1006,7 @@ export class OrderService {
         const saveInvoicePromise = () =>
           queryRunner.manager.save(Invoice, invoice);
         promises.push(saveInvoicePromise);
+        cityDataIndex = 3;
       }
 
       //* getIsAutoConfirmPromise, saveOrderPromise,  getCityFromLocationPromise
@@ -1058,9 +1060,9 @@ export class OrderService {
       );
 
       const values = await Promise.all(promises.map((callback) => callback()));
-      console.log('values[2]', values[2]);
+      console.log('values[cityDataIndex]', values[cityDataIndex]);
       //TODO: Nếu không có dữ liệu city và area
-      if (!values[2].data.city) {
+      if (!values[cityDataIndex].data.city) {
         throw new Error(
           'Cannot find city and area information from customer lat and long',
         );
@@ -1070,10 +1072,12 @@ export class OrderService {
       const promises2: (() => Promise<any>)[] = [];
       if (!order.deliveryLocation) {
         const deliveryLocation = new DeliveryLocation();
-        deliveryLocation.cityId = values[2].data.city.id;
-        deliveryLocation.cityName = values[2].data.city.name;
-        deliveryLocation.areaId = values[2].data.city.districts[0].id;
-        deliveryLocation.areaName = values[2].data.city.districts[0].name;
+        deliveryLocation.cityId = values[cityDataIndex].data.city.id;
+        deliveryLocation.cityName = values[cityDataIndex].data.city.name;
+        deliveryLocation.areaId =
+          values[cityDataIndex].data.city.districts[0].id;
+        deliveryLocation.areaName =
+          values[cityDataIndex].data.city.districts[0].name;
         deliveryLocation.order = order;
         //* Create deliveryLocation promise
         const createDeliveryLocationPromise = () =>
@@ -1082,10 +1086,12 @@ export class OrderService {
       } else {
         //TODO: Trường hợp đặt hàng Paypal vô webview xong ấn thoát rồi đặt lại
         //TODO: Nếu có rồi thì update lại
-        order.deliveryLocation.cityId = values[2].data.city.id;
-        order.deliveryLocation.cityName = values[2].data.city.name;
-        order.deliveryLocation.areaId = values[2].data.city.districts[0].id;
-        order.deliveryLocation.areaName = values[2].data.city.districts[0].name;
+        order.deliveryLocation.cityId = values[cityDataIndex].data.city.id;
+        order.deliveryLocation.cityName = values[cityDataIndex].data.city.name;
+        order.deliveryLocation.areaId =
+          values[cityDataIndex].data.city.districts[0].id;
+        order.deliveryLocation.areaName =
+          values[cityDataIndex].data.city.districts[0].name;
         //* Update deliveryLocation promise
         const updateDeliveryLocationPromise = () =>
           queryRunner.manager.save(DeliveryLocation, order.deliveryLocation);
