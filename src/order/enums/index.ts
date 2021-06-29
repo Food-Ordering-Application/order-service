@@ -10,3 +10,4 @@ export { PayPalRefundStatus } from './paypal-refund-status.enum';
 export { EDriverOrderType } from './list-order-driver';
 export { GroupByInterval } from './group-by-interval.enum';
 export { MenuInsightSortBy } from './menu-insight-sort-by.enum';
+export { ActorType } from './actor-type.enum';

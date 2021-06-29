@@ -1,0 +1,22 @@
+﻿id,sourceType,targetType,content,displayOrder
+1,1,4,Đơn hàng chưa có tài xế nhận,1
+2,1,4,Đơn hàng xác nhận quá lâu,2
+3,1,1,Tôi muốn thay đổi đơn hàng,3
+4,1,1,Tôi bận nên không thệ nhận hàng,4
+5,1,1,Khác,5
+6,2,3,Nhà hàng đóng cửa,1
+7,2,3,Nhà hàng hết món,2
+8,2,3,Nhà hàng đã thay đổi thực đơn,3
+9,2,3,Nhà hàng từ chối đơn hàng,4
+10,2,1,Không liên hệ được khách hàng,5
+11,2,1,Khách muốn thay đổi đơn hàng,6
+12,2,1,Khách không muốn chờ lâu,7
+13,2,1,Khách muốn giao địa chỉ khác,8
+14,2,1,"Khách gian lận, yêu cầu phối hợp trục lợi",9
+15,2,2,Khác,10
+16,3,3,Nhà hàng quá tải,1
+17,3,3,Nhà hàng hết món,2
+18,3,3,Nhà hàng đã thay đổi thực đơn,3
+19,3,1,Không liên hệ được khách hàng,4
+20,3,2,Không liên hệ được tài xế,5
+21,3,3,Khác,6

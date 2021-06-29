@@ -7,3 +7,4 @@ export { InvoiceLineItem } from './invoice-line-item.entity';
 export { Invoice } from './invoice.entity';
 export { PaypalPayment } from './paypal-payment.entity';
 export { CashPayment } from './cash-payment.entity';
+export { CancelOrderReason } from './cancel-order-reason.entity';
