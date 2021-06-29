@@ -937,8 +937,9 @@ export class OrderService {
     let queryRunner;
     try {
       console.log('CONFIRM ORDER CHECKOUT FUNCTION');
-      const { note, paymentMethod, orderId, customerId, paypalMerchantId } =
+      const { paymentMethod, orderId, customerId, paypalMerchantId } =
         confirmOrderCheckoutDto;
+      let { note } = confirmOrderCheckoutDto;
       queryRunner = this.connection.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
@@ -978,6 +979,7 @@ export class OrderService {
       }
       //TODO: Thêm note cho order nếu có
       if (note) {
+        note = note.trim();
         order.note = note;
       }
 
