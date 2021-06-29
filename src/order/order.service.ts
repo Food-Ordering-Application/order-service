@@ -986,6 +986,7 @@ export class OrderService {
       //TODO: Nếu order chưa có invoice (Trường hợp lần đầu ấn đặt hàng)
       let invoice: Invoice;
       let cityDataIndex = 2;
+      let isAutoConfirmDataIndex = 0;
       if (!order?.invoice) {
         console.log('NOT HAVING INVOICE');
         invoice = new Invoice();
@@ -998,6 +999,7 @@ export class OrderService {
           queryRunner.manager.save(Invoice, invoice);
         promises.push(saveInvoicePromise);
         cityDataIndex = 3;
+        isAutoConfirmDataIndex = 1;
       }
 
       //* getIsAutoConfirmPromise, saveOrderPromise,  getCityFromLocationPromise
@@ -1151,7 +1153,7 @@ export class OrderService {
             promises3.push(removePaypalPayment);
           }
 
-          const { status, isAutoConfirm } = values[0];
+          const { status, isAutoConfirm } = values[isAutoConfirmDataIndex];
           const isMerchantNotAvailable =
             status === HttpStatus.NOT_FOUND ||
             isAutoConfirm === undefined ||
