@@ -1,12 +1,12 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
-  OneToMany,
   CreateDateColumn,
-  UpdateDateColumn,
-  OneToOne,
+  Entity,
   Index,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { OrdStatus } from '../enums';
 import { DeliveryLocation } from './delivery-location.entity';

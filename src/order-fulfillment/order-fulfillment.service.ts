@@ -39,6 +39,7 @@ import { PayPalClient } from './helpers/paypal-refund-helper';
 
 import { allowed, filteredOrder } from '../shared/filteredOrder';
 import { OrderEventPayload } from './events/dispatch-driver-order.event';
+import { RestaurantCancelReason } from './enums';
 @Injectable()
 export class OrderFulfillmentService {
   constructor(
@@ -379,9 +380,18 @@ export class OrderFulfillmentService {
         message: 'Error when update delivery information',
       };
     }
+
+    const cancelReasonId =
+      orderItemIds.length > 0
+        ? RestaurantCancelReason.OUT_OF_STOCK
+        : RestaurantCancelReason.OTHER;
+    const cancelNote = cashierNote;
+
     delivery.status = DeliveryStatus.CANCELLED;
     delivery.issueType = DeliveryIssue.ITEM_IS_OUT_OF_STOCK;
     delivery.issueNote = cashierNote;
+    delivery.cancelOrderReasonId = cancelReasonId;
+    delivery.cancelNote = cancelNote;
 
     // -- save delivery
     const updateDeliveryPromise = () =>
@@ -411,13 +421,17 @@ export class OrderFulfillmentService {
     if (payment.method === PaymentMethod.PAYPAL) {
       // refund PayPal
       const { paypalPayment } = payment;
-      const response = await PayPalClient.refund(paypalPayment.captureId);
+      const response = await PayPalClient.refund(
+        paypalPayment.captureId,
+        paypalPayment.paypalMerchantId,
+      );
       if (!response) {
         return {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Error during refund process',
         };
       }
+      console.log({ response });
 
       const { refundId, status: refundStatus } = response;
 
@@ -456,6 +470,7 @@ export class OrderFulfillmentService {
         message: 'Void order successfully',
       };
     } catch (error) {
+      console.log('void error', error.message);
       await queryRunner.rollbackTransaction();
 
       return {

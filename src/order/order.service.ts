@@ -1246,6 +1246,11 @@ export class OrderService {
           request.prefer('return=representation');
           request.requestBody({
             intent: 'CAPTURE',
+            // paypal local testing
+            // application_context: {
+            //   return_url: 'https://example.com',
+            //   cancel_url: 'https://example.com',
+            // },
             purchase_units: [
               {
                 amount: {
@@ -1288,12 +1293,15 @@ export class OrderService {
           if (!order.invoice?.payment?.paypalPayment) {
             console.log('NOT HAVING PAYPAL PAYMENT');
             const paypalPayment = new PaypalPayment();
+            paypalPayment.paypalMerchantId = paypalMerchantId;
             paypalPayment.paypalOrderId = paypalOrder.result.id;
             paypalPayment.payment = payment;
             await queryRunner.manager.save(PaypalPayment, paypalPayment);
           } else {
             //TODO: Nếu lưu rồi thì update lại
             console.log('ALREADY PAYPALPAYMENT');
+            order.invoice.payment.paypalPayment.paypalMerchantId =
+              paypalMerchantId;
             order.invoice.payment.paypalPayment.paypalOrderId =
               paypalOrder.result.id;
             await queryRunner.manager.save(
@@ -1753,21 +1761,95 @@ export class OrderService {
   async eventPaypalOrderOccur(
     eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
   ) {
+    // let queryRunner;
+    // try {
+    //   const { event_type, resource } = eventPaypalOrderOccurDto;
+    //   console.log(event_type);
+    //   console.log(resource);
+    //   // TODO: Lấy thông tin order dựa theo paypalOrderId
+    //   const order = await this.orderRepository
+    //     .createQueryBuilder('order')
+    //     .leftJoinAndSelect('order.invoice', 'invoice')
+    //     .leftJoinAndSelect('invoice.payment', 'payment')
+    //     .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
+    //     .where('paypalPayment.paypalOrderId = :paypalOrderId', {
+    //       paypalOrderId: resource.id,
+    //     })
+    //     .getOne();
+    //   console.log('order', order);
+    //   if (!order) {
+    //     console.log('Cannot found order');
+    //     return;
+    //   }
+
+    //   queryRunner = this.connection.createQueryRunner();
+    //   await queryRunner.connect();
+    //   await queryRunner.startTransaction();
+    //   switch (event_type) {
+    //     case 'CHECKOUT.ORDER.COMPLETED':
+    //       //TODO: Update lại trạng thái Invoice và Payment
+    //       order.invoice.status = InvoiceStatus.PAID;
+    //       order.invoice.payment.status = PaymentStatus.SUCCESS;
+    //       await Promise.all([
+    //         queryRunner.manager.save(Invoice, order.invoice),
+    //         queryRunner.manager.save(Payment, order.invoice.payment),
+    //       ]);
+    //       break;
+    //   }
+
+    //   await queryRunner.commitTransaction();
+    // } catch (error) {
+    //   this.logger.error(error);
+    //   await queryRunner.rollbackTransaction();
+    // } finally {
+    //   if (queryRunner) {
+    //     await queryRunner.release();
+    //   }
+    // }
     let queryRunner;
+    console.dir({ eventPaypalOrderOccurDto }, { depth: 4 });
     try {
       const { event_type, resource } = eventPaypalOrderOccurDto;
       console.log(event_type);
-      console.log(resource);
-      // TODO: Lấy thông tin order dựa theo paypalOrderId
-      const order = await this.orderRepository
+      // console.log(resource);
+
+      // find paymentId (captureId)
+
+      let queryBuilder = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.invoice', 'invoice')
         .leftJoinAndSelect('invoice.payment', 'payment')
-        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
-        .where('paypalPayment.paypalOrderId = :paypalOrderId', {
-          paypalOrderId: resource.id,
-        })
-        .getOne();
+        .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment');
+
+      // TODO: Lấy thông tin order dựa theo paypalOrderId
+      const CHECKOUT_PATTERN = /CHECKOUT.*/;
+      const PAYMENT_PATTERN_COMPLETED = /PAYMENT.*.COMPLETED/;
+      const PAYMENT_PATTERN_REFUNDED = /PAYMENT.*.REFUNDED/;
+      if (PAYMENT_PATTERN_COMPLETED.test(event_type)) {
+        queryBuilder = queryBuilder.where(
+          'paypalPayment.captureId = :paymentId',
+          {
+            paymentId: resource.id,
+          },
+        );
+      } else if (PAYMENT_PATTERN_REFUNDED.test(event_type)) {
+        queryBuilder = queryBuilder.where(
+          'paypalPayment.refundId = :refundId',
+          {
+            refundId: resource.id,
+          },
+        );
+      } else if (CHECKOUT_PATTERN.test(event_type)) {
+        queryBuilder = queryBuilder.where(
+          'paypalPayment.paypalOrderId = :paypalOrderId',
+          {
+            paypalOrderId: resource.id,
+          },
+        );
+      } else {
+        return;
+      }
+      const order = await queryBuilder.getOne();
       console.log('order', order);
       if (!order) {
         console.log('Cannot found order');
@@ -1778,7 +1860,7 @@ export class OrderService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       switch (event_type) {
-        case 'CHECKOUT.ORDER.COMPLETED':
+        case 'PAYMENT.CAPTURE.COMPLETED':
           //TODO: Update lại trạng thái Invoice và Payment
           order.invoice.status = InvoiceStatus.PAID;
           order.invoice.payment.status = PaymentStatus.SUCCESS;
@@ -1786,6 +1868,20 @@ export class OrderService {
             queryRunner.manager.save(Invoice, order.invoice),
             queryRunner.manager.save(Payment, order.invoice.payment),
           ]);
+          break;
+        // case 'PAYMENT.CAPTURE.DENIED':
+        case 'PAYMENT.CAPTURE.REFUNDED':
+          order.invoice.status = InvoiceStatus.REFUNDED;
+          order.invoice.payment.status = PaymentStatus.REFUNDED;
+          await Promise.all([
+            queryRunner.manager.save(Invoice, order.invoice),
+            queryRunner.manager.save(Payment, order.invoice.payment),
+          ]);
+          break;
+        case 'CHECKOUT.ORDER.COMPLETED':
+        case 'CHECKOUT.ORDER.APPROVED':
+          console.log('CHECKOUT EVENT');
+          console.log({ event_type });
           break;
       }
 
@@ -1795,7 +1891,7 @@ export class OrderService {
       await queryRunner.rollbackTransaction();
     } finally {
       if (queryRunner) {
-        await queryRunner.release();
+        await queryRunner?.release();
       }
     }
   }

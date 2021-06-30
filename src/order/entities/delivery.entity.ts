@@ -8,9 +8,11 @@ import {
   OneToOne,
   JoinColumn,
   Index,
+  ManyToOne,
 } from 'typeorm';
 import { DeliveryStatus } from '../enums';
 import { Order } from './order.entity';
+import { CancelOrderReason } from '.';
 
 @Entity()
 export class Delivery {
@@ -97,4 +99,17 @@ export class Delivery {
   @OneToOne(() => Order, (order) => order.delivery) // specify inverse side as a second parameter
   @JoinColumn()
   order: Order;
+
+  @ManyToOne(
+    () => CancelOrderReason,
+    (CancelOrderReason) => CancelOrderReason.deliveries,
+  )
+  @JoinColumn()
+  cancelOrderReason: CancelOrderReason;
+
+  @Column({ nullable: true })
+  cancelOrderReasonId: number;
+
+  @Column({ nullable: true })
+  cancelNote: string;
 }
