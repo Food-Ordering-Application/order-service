@@ -37,4 +37,7 @@ export class PaypalPayment {
   @OneToOne(() => Payment, (payment) => payment.paypalPayment)
   @JoinColumn()
   payment: Payment;
+
+  @Column({ nullable: true })
+  paypalMerchantId: string;
 }

@@ -421,13 +421,17 @@ export class OrderFulfillmentService {
     if (payment.method === PaymentMethod.PAYPAL) {
       // refund PayPal
       const { paypalPayment } = payment;
-      const response = await PayPalClient.refund(paypalPayment.captureId);
+      const response = await PayPalClient.refund(
+        paypalPayment.captureId,
+        paypalPayment.paypalMerchantId,
+      );
       if (!response) {
         return {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Error during refund process',
         };
       }
+      console.log({ response });
 
       const { refundId, status: refundStatus } = response;
 
@@ -466,6 +470,7 @@ export class OrderFulfillmentService {
         message: 'Void order successfully',
       };
     } catch (error) {
+      console.log('void error', error.message);
       await queryRunner.rollbackTransaction();
 
       return {
