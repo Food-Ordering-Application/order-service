@@ -2332,7 +2332,10 @@ export class OrderService {
 
       const { data, orderId } = eventPaymentZALOPAYDto;
 
-      let result: IResultZALOPAY;
+      const result: IResultZALOPAY = {
+        return_code: null,
+        return_message: null,
+      };
 
       const order = await this.orderRepository
         .createQueryBuilder('order')
@@ -2367,6 +2370,7 @@ export class OrderService {
 
           result.return_code = 1;
           result.return_message = 'success';
+          console.log('result', result);
         }
       } catch (ex) {
         result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
