@@ -24,6 +24,7 @@ import {
   GetOrderStatisticsOfRestaurantDto,
   GetRevenueInsightOfRestaurantDto,
   GetOrderRatingInfosDto,
+  EventPaymentZALOPAYDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -248,5 +249,14 @@ export class OrderController {
     getOrderRatingInfosDto: GetOrderRatingInfosDto,
   ): Promise<IGetOrderRatingInfosResponse> {
     return this.orderService.getOrderRatingInfos(getOrderRatingInfosDto);
+  }
+
+  //! Sự kiện thanh toán thành công của ZALOPAY
+  @MessagePattern('eventPaymentZALOPAY')
+  async eventPaymentZALOPAY(
+    @Payload()
+    eventPaymentZALOPAYDto: EventPaymentZALOPAYDto,
+  ) {
+    return this.orderService.eventPaymentZALOPAY(eventPaymentZALOPAYDto);
   }
 }

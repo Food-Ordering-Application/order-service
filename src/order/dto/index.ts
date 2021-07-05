@@ -30,3 +30,4 @@ export { GetOrderStatisticsOfRestaurantDto } from './get-order-statistics-of-res
 export { GetRevenueInsightOfRestaurantDto } from './get-revenue-insight-of-restaurant.dto';
 export { RestaurantMenuInsightDto } from './restaurant-menu-insight.dto';
 export { GetOrderRatingInfosDto } from './get-order-rating-infos.dto';
+export { EventPaymentZALOPAYDto } from './event-payment-zalopay.dto';

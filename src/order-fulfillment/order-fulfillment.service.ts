@@ -160,10 +160,12 @@ export class OrderFulfillmentService {
     this.userServiceClient.emit('orderHasBeenCompletedEvent', {
       paymentMethod: order.invoice.payment.method,
       orderGrandTotal: order.grandTotal,
+      orderSubTotal: order.subTotal,
       driverId: order.delivery.driverId,
       orderId: order.id,
       deliveryId: order.delivery.id,
       shippingFee: order.delivery.shippingFee,
+      restaurantId: order.restaurantId,
       deliveryDistance: order.delivery.totalDeliveryDistance
         ? order.delivery.totalDeliveryDistance
         : order.delivery.distance,

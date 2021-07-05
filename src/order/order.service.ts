@@ -9,6 +9,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import * as paypal from '@paypal/checkout-server-sdk';
 import axios from 'axios';
+import CryptoJS from 'crypto-js';
 import * as moment from 'moment';
 import * as momenttimezone from 'moment-timezone';
 import { throwError, TimeoutError } from 'rxjs';
@@ -33,6 +34,7 @@ import {
   AddNewItemToOrderDto,
   ApprovePaypalOrderDto,
   ConfirmOrderCheckoutDto,
+  EventPaymentZALOPAYDto,
   EventPaypalOrderOccurDto,
   GetAllRestaurantOrderDto,
   GetLastDraftOrderOfCustomerDto,
@@ -107,6 +109,7 @@ import {
   IOrder,
   IOrdersResponse,
   IRestaurantStatisticResponse,
+  IResultZALOPAY,
   ISaveOrderResponse,
 } from './interfaces';
 
@@ -1105,10 +1108,13 @@ export class OrderService {
         payment.amount = calculateOrderGrandToTal(order);
         payment.invoice = invoice;
         invoice.payment = payment;
-        if (paymentMethod === PaymentMethod.COD) {
-          payment.status = PaymentStatus.PROCESSING;
-        } else {
+        if (
+          paymentMethod === PaymentMethod.PAYPAL ||
+          paymentMethod === PaymentMethod.ZALOPAY
+        ) {
           payment.status = PaymentStatus.PENDING_USER_ACTION;
+        } else {
+          payment.status = PaymentStatus.PROCESSING;
         }
         payment.method = paymentMethod;
         //* Create payment promise
@@ -1121,10 +1127,13 @@ export class OrderService {
         console.log('ALREADY HAVE PAYMENT');
         order.invoice.payment.amount = calculateOrderGrandToTal(order);
         order.invoice.payment.invoice = invoice;
-        if (paymentMethod === PaymentMethod.COD) {
-          order.invoice.payment.status = PaymentStatus.PROCESSING;
+        if (
+          paymentMethod === PaymentMethod.PAYPAL ||
+          paymentMethod === PaymentMethod.ZALOPAY
+        ) {
+          payment.status = PaymentStatus.PENDING_USER_ACTION;
         } else {
-          order.invoice.payment.status = PaymentStatus.PENDING_USER_ACTION;
+          payment.status = PaymentStatus.PROCESSING;
         }
         order.invoice.payment.method = paymentMethod;
         //* Update payment promise
@@ -1139,6 +1148,12 @@ export class OrderService {
       }
 
       console.log('BEFORE SWITCH');
+      const { status, isAutoConfirm } = values[isAutoConfirmDataIndex];
+      const isMerchantNotAvailable =
+        status === HttpStatus.NOT_FOUND ||
+        isAutoConfirm === undefined ||
+        isAutoConfirm === null;
+      const doesConfirmOrder = isAutoConfirm || isMerchantNotAvailable;
       switch (paymentMethod) {
         case PaymentMethod.COD:
           console.log('BEGIN COD');
@@ -1155,15 +1170,8 @@ export class OrderService {
             promises3.push(removePaypalPayment);
           }
 
-          const { status, isAutoConfirm } = values[isAutoConfirmDataIndex];
-          const isMerchantNotAvailable =
-            status === HttpStatus.NOT_FOUND ||
-            isAutoConfirm === undefined ||
-            isAutoConfirm === null;
-
           console.log('isAutoConfirm', isAutoConfirm);
           console.log('isMerchantNotAvailable', isMerchantNotAvailable);
-          const doesConfirmOrder = isAutoConfirm || isMerchantNotAvailable;
           if (doesConfirmOrder) {
             console.log('AUTOCONFIRM ORDER');
             //* handleAutoConfirmOrder promise
@@ -1190,6 +1198,93 @@ export class OrderService {
             status: HttpStatus.OK,
             message: 'Confirm order checkout successfully',
           };
+        //! ZALOPAY
+        case PaymentMethod.ZALOPAY:
+          console.log('BEGIN ZALOPAY');
+          const promise4: (() => Promise<any>)[] = [];
+
+          //TODO: Nếu có lưu paypalPayment thì xóa
+          if (order?.invoice?.payment?.paypalPayment) {
+            //* Remove paypalPayment promise
+            const removePaypalPayment = () =>
+              queryRunner.manager.remove(
+                PaypalPayment,
+                order.invoice.payment.paypalPayment,
+              );
+            promise4.push(removePaypalPayment);
+          }
+
+          // APP INFO
+          const config = {
+            app_id: '2553',
+            key1: 'PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL',
+            key2: 'kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz',
+            endpoint: 'https://sb-openapi.zalopay.vn/v2/create',
+            callback_url: `https://apigway.herokuapp.com/order/${order.id}/payment-result`,
+          };
+
+          const embed_data = {
+            redirecturl: `https://salechannel.herokuapp.com/order/${order.id}/payment-is-processing`,
+            orderid: order.id,
+          };
+
+          const zalopayItems = [{}];
+          const transID = Math.floor(Math.random() * 1000000);
+          // appid|app_trans_id|appuser|amount|apptime|embeddata|item
+
+          const zalopayOrder = {
+            app_id: config.app_id,
+            app_trans_id: `${moment().format('YYMMDD')}_${transID}`, // translation missing: vi.docs.shared.sample_code.comments.app_trans_id
+            app_user: 'user123',
+            app_time: Date.now(), // miliseconds
+            item: JSON.stringify(zalopayItems),
+            embed_data: JSON.stringify(embed_data),
+            amount: order.grandTotal,
+            description: `Payment for the zalopayOrder #${transID}`,
+            callback_url: config.callback_url,
+            bank_code: '',
+            mac: null,
+          };
+
+          const data =
+            config.app_id +
+            '|' +
+            zalopayOrder.app_trans_id +
+            '|' +
+            zalopayOrder.app_user +
+            '|' +
+            zalopayOrder.amount +
+            '|' +
+            zalopayOrder.app_time +
+            '|' +
+            zalopayOrder.embed_data +
+            '|' +
+            zalopayOrder.item;
+          zalopayOrder.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
+          const zaloPayResponse = await axios.post(config.endpoint, null, {
+            params: zalopayOrder,
+          });
+          console.log('ZALOPAY RESPONSE', zaloPayResponse.data);
+
+          const { return_code } = zaloPayResponse.data;
+
+          //TODO: Nếu thất bại
+          if (return_code === 2) {
+            await queryRunner.rollbackTransaction();
+            return {
+              status: HttpStatus.INTERNAL_SERVER_ERROR,
+              message: 'Fail due to zalopay',
+            };
+          } else {
+            await Promise.all(promise4.map((callback) => callback()));
+            await queryRunner.commitTransaction();
+            return {
+              status: HttpStatus.OK,
+              message: 'Confirm order checkout successfully',
+              orderUrl: zaloPayResponse.data.orderUrl,
+            };
+          }
+
         case PaymentMethod.PAYPAL:
           console.log('Get exchangeRate');
           let exchangeRate;
@@ -1761,51 +1856,6 @@ export class OrderService {
   async eventPaypalOrderOccur(
     eventPaypalOrderOccurDto: EventPaypalOrderOccurDto,
   ) {
-    // let queryRunner;
-    // try {
-    //   const { event_type, resource } = eventPaypalOrderOccurDto;
-    //   console.log(event_type);
-    //   console.log(resource);
-    //   // TODO: Lấy thông tin order dựa theo paypalOrderId
-    //   const order = await this.orderRepository
-    //     .createQueryBuilder('order')
-    //     .leftJoinAndSelect('order.invoice', 'invoice')
-    //     .leftJoinAndSelect('invoice.payment', 'payment')
-    //     .leftJoinAndSelect('payment.paypalPayment', 'paypalPayment')
-    //     .where('paypalPayment.paypalOrderId = :paypalOrderId', {
-    //       paypalOrderId: resource.id,
-    //     })
-    //     .getOne();
-    //   console.log('order', order);
-    //   if (!order) {
-    //     console.log('Cannot found order');
-    //     return;
-    //   }
-
-    //   queryRunner = this.connection.createQueryRunner();
-    //   await queryRunner.connect();
-    //   await queryRunner.startTransaction();
-    //   switch (event_type) {
-    //     case 'CHECKOUT.ORDER.COMPLETED':
-    //       //TODO: Update lại trạng thái Invoice và Payment
-    //       order.invoice.status = InvoiceStatus.PAID;
-    //       order.invoice.payment.status = PaymentStatus.SUCCESS;
-    //       await Promise.all([
-    //         queryRunner.manager.save(Invoice, order.invoice),
-    //         queryRunner.manager.save(Payment, order.invoice.payment),
-    //       ]);
-    //       break;
-    //   }
-
-    //   await queryRunner.commitTransaction();
-    // } catch (error) {
-    //   this.logger.error(error);
-    //   await queryRunner.rollbackTransaction();
-    // } finally {
-    //   if (queryRunner) {
-    //     await queryRunner.release();
-    //   }
-    // }
     let queryRunner;
     console.dir({ eventPaypalOrderOccurDto }, { depth: 4 });
     try {
@@ -2257,5 +2307,86 @@ export class OrderService {
       data: { feedbacks = [] },
     } = response;
     return feedbacks;
+  }
+
+  //! Sự kiện thanh toán thành công của ZALOPAY
+  async eventPaymentZALOPAY(eventPaymentZALOPAYDto: EventPaymentZALOPAYDto) {
+    let queryRunner;
+    console.log('eventPaymentZALOPAYDto', eventPaymentZALOPAYDto);
+    try {
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      // APP INFO
+      const config = {
+        app_id: '2553',
+        key1: 'PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL',
+        key2: 'kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz',
+        endpoint: 'https://sb-openapi.zalopay.vn/v2/create',
+        callback_url: `https://apigway.herokuapp.com/order/payment-result`,
+      };
+
+      const { data, orderId } = eventPaymentZALOPAYDto;
+
+      let result: IResultZALOPAY;
+
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .where('order.id = :orderId', { orderId: orderId })
+        .getOne();
+
+      try {
+        const dataStr = data;
+        const reqMac = eventPaymentZALOPAYDto.mac;
+
+        const mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
+        console.log('mac =', mac);
+
+        // kiểm tra callback hợp lệ (đến từ ZaloPay server)
+        if (reqMac !== mac) {
+          // callback không hợp lệ
+          result.return_code = -1;
+          result.return_message = 'mac not equal';
+        } else {
+          // thanh toán thành công
+          // merchant cập nhật trạng thái cho đơn hàng
+          const dataJson = JSON.parse(dataStr);
+          order.invoice.status = InvoiceStatus.PAID;
+          order.invoice.payment.status = PaymentStatus.SUCCESS;
+
+          console.log(
+            "update order's status = success where app_trans_id =",
+            dataJson['app_trans_id'],
+          );
+
+          result.return_code = 1;
+          result.return_message = 'success';
+        }
+      } catch (ex) {
+        result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
+        result.return_message = ex.message;
+        order.invoice.status = InvoiceStatus.UNPAID;
+        order.invoice.payment.status = PaymentStatus.FAILURE;
+      }
+
+      await Promise.all([
+        queryRunner.manager.save(Invoice, order.invoice),
+        queryRunner.manager.save(Payment, order.invoice.payment),
+      ]);
+
+      // thông báo kết quả cho ZaloPay server
+      await queryRunner.commitTransaction();
+      return result;
+    } catch (error) {
+      this.logger.error(error);
+      await queryRunner.rollbackTransaction();
+    } finally {
+      if (queryRunner) {
+        await queryRunner?.release();
+      }
+    }
   }
 }

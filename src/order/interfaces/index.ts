@@ -20,3 +20,4 @@ export { ICityAreaData } from './city-area-data.interface';
 export { IGetOrderRatingInfosResponse } from './get-order-rating-infos-response.interface';
 export { IFeedback } from './feedback.interface';
 export { IGetFeedbackOfOrders } from './get-feedback-of-orders-response.interface';
+export { IResultZALOPAY } from './result.interface';
