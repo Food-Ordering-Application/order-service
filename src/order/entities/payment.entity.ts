@@ -11,6 +11,7 @@ import { PaymentMethod, PaymentStatus } from '../enums';
 import { CashPayment } from './cash-payment.entity';
 import { Invoice } from './invoice.entity';
 import { PaypalPayment } from './paypal-payment.entity';
+import { ZaloPayPayment } from './zalopay-payment.entity';
 
 @Entity()
 export class Payment {
@@ -41,4 +42,6 @@ export class Payment {
   paypalPayment: PaypalPayment;
   @OneToOne(() => CashPayment, (cashPayment) => cashPayment.payment)
   cashPayment: CashPayment;
+  @OneToOne(() => ZaloPayPayment, (zalopayPayment) => zalopayPayment.payment)
+  zalopayPayment: ZaloPayPayment;
 }
