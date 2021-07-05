@@ -2356,6 +2356,8 @@ export class OrderService {
           // callback không hợp lệ
           result.return_code = -1;
           result.return_message = 'mac not equal';
+          await queryRunner.rollbackTransaction();
+          return result;
         } else {
           // thanh toán thành công
           // merchant cập nhật trạng thái cho đơn hàng
@@ -2363,29 +2365,57 @@ export class OrderService {
           order.invoice.status = InvoiceStatus.PAID;
           order.invoice.payment.status = PaymentStatus.SUCCESS;
 
-          console.log(
-            "update order's status = success where app_trans_id =",
-            dataJson['app_trans_id'],
-          );
-
           result.return_code = 1;
           result.return_message = 'success';
           console.log('result', result);
+          const { isAutoConfirm }: IIsAutoConfirmResponse =
+            await this.userServiceClient
+              .send('getIsAutoConfirm', {
+                restaurantId: order.restaurantId,
+              })
+              .pipe(
+                timeout(5000),
+                catchError((err) => {
+                  if (err instanceof TimeoutError) {
+                    return throwError(
+                      new RequestTimeoutException(
+                        'Internal timeout User server has problem!',
+                      ),
+                    );
+                  }
+                  return throwError({ message: err });
+                }),
+              )
+              .toPromise();
+          const doesConfirmOrder = isAutoConfirm;
+          if (doesConfirmOrder) {
+            // order.cashierId = cashierId;
+            await Promise.all([
+              queryRunner.manager.save(Payment, order.invoice.payment),
+              queryRunner.manager.save(Invoice, order.invoice),
+              this.handleAutoConfirmOrder(order, queryRunner),
+            ]);
+          } else {
+            await Promise.all([
+              this.placeOrder(order, queryRunner),
+              queryRunner.manager.save(Payment, order.invoice.payment),
+              queryRunner.manager.save(Invoice, order.invoice),
+            ]);
+          }
+
+          await queryRunner.commitTransaction();
+
+          if (doesConfirmOrder) {
+            this.orderFulfillmentService.sendConfirmOrderEvent(order);
+          } else {
+            this.orderFulfillmentService.sendPlaceOrderEvent(order);
+          }
         }
       } catch (ex) {
         result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
         result.return_message = ex.message;
-        order.invoice.status = InvoiceStatus.UNPAID;
-        order.invoice.payment.status = PaymentStatus.FAILURE;
       }
-
-      await Promise.all([
-        queryRunner.manager.save(Invoice, order.invoice),
-        queryRunner.manager.save(Payment, order.invoice.payment),
-      ]);
-
       // thông báo kết quả cho ZaloPay server
-      await queryRunner.commitTransaction();
       return result;
     } catch (error) {
       this.logger.error(error);
