@@ -31,3 +31,4 @@ export { GetRevenueInsightOfRestaurantDto } from './get-revenue-insight-of-resta
 export { RestaurantMenuInsightDto } from './restaurant-menu-insight.dto';
 export { GetOrderRatingInfosDto } from './get-order-rating-infos.dto';
 export { EventPaymentZALOPAYDto } from './event-payment-zalopay.dto';
+export { UpdateZALOPAYPaymentStatusDto } from './update-zalopay-payment.dto';

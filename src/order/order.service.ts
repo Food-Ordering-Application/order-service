@@ -54,6 +54,7 @@ import {
   RestaurantRevenueInsightDto,
   UpdateDeliveryAddressDto,
   UpdateOrderItemQuantityDto,
+  UpdateZALOPAYPaymentStatusDto,
 } from './dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetMenuInsightOfRestaurantDto } from './dto/get-menu-insight-of-restaurant.dto';
@@ -111,6 +112,7 @@ import {
   IRestaurantStatisticResponse,
   IResultZALOPAY,
   ISaveOrderResponse,
+  ISimpleResponse,
 } from './interfaces';
 
 @Injectable()
@@ -2386,6 +2388,105 @@ export class OrderService {
     } finally {
       if (queryRunner) {
         await queryRunner?.release();
+      }
+    }
+  }
+
+  //! Frontend gọi để update trạng thái payment ZALOPAY
+  async updateZALOPAYPaymentStatus(
+    updateZALOPAYPaymentStatusDto: UpdateZALOPAYPaymentStatusDto,
+  ): Promise<ISimpleResponse> {
+    let queryRunner;
+    try {
+      const { orderId, customerId } = updateZALOPAYPaymentStatusDto;
+      queryRunner = this.connection.createQueryRunner();
+      await queryRunner.connect();
+      //TODO: Lấy thông tin order
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.delivery', 'delivery')
+        .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .where('order.id = :orderId', {
+          orderId: orderId,
+        })
+        .getOne();
+
+      if (!order) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: 'Order not found',
+        };
+      }
+
+      //TODO: Nếu là order salechannel
+      if (order.delivery) {
+        //TODO: Nếu order đó ko phải do customer tạo order đó checkout (Authorization)
+        if (order.delivery.customerId !== customerId) {
+          return {
+            status: HttpStatus.FORBIDDEN,
+            message: 'Forbidden',
+          };
+        }
+      }
+      const values: [IIsAutoConfirmResponse, any] = await Promise.all([
+        this.userServiceClient
+          .send('getIsAutoConfirm', {
+            restaurantId: order.restaurantId,
+          })
+          .pipe(
+            timeout(5000),
+            catchError((err) => {
+              if (err instanceof TimeoutError) {
+                return throwError(
+                  new RequestTimeoutException(
+                    'Internal timeout User server has problem!',
+                  ),
+                );
+              }
+              return throwError({ message: err });
+            }),
+          )
+          .toPromise(),
+        queryRunner.startTransaction(),
+      ]);
+      //TODO: Đổi trạng thái payment sang đang xử lý
+      order.invoice.payment.status = PaymentStatus.PROCESSING;
+      const doesConfirmOrder = values[0].isAutoConfirm;
+      if (doesConfirmOrder) {
+        // order.cashierId = cashierId;
+        await Promise.all([
+          queryRunner.manager.save(Payment, order.invoice.payment),
+          this.handleAutoConfirmOrder(order, queryRunner),
+        ]);
+      } else {
+        await Promise.all([
+          this.placeOrder(order, queryRunner),
+          queryRunner.manager.save(Payment, order.invoice.payment),
+        ]);
+      }
+
+      await queryRunner.commitTransaction();
+
+      if (doesConfirmOrder) {
+        this.orderFulfillmentService.sendConfirmOrderEvent(order);
+      } else {
+        this.orderFulfillmentService.sendPlaceOrderEvent(order);
+      }
+      return {
+        status: HttpStatus.OK,
+        message: 'Update zalopay payment and dispatch event',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      await queryRunner.rollbackTransaction();
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      };
+    } finally {
+      if (queryRunner) {
+        await queryRunner.release();
       }
     }
   }

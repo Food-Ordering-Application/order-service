@@ -25,6 +25,7 @@ import {
   GetRevenueInsightOfRestaurantDto,
   GetOrderRatingInfosDto,
   EventPaymentZALOPAYDto,
+  UpdateZALOPAYPaymentStatusDto,
 } from './dto';
 import {
   ICreateOrderResponse,
@@ -34,6 +35,7 @@ import {
   IApprovePaypalOrder,
   ICustomerOrdersResponse,
   IRestaurantStatisticResponse,
+  ISimpleResponse,
 } from './interfaces';
 import { EventPattern } from '@nestjs/microservices';
 import { GetRestaurantStatisticDto } from './dto/get-restaurant-statistic.dto';
@@ -258,5 +260,15 @@ export class OrderController {
     eventPaymentZALOPAYDto: EventPaymentZALOPAYDto,
   ) {
     return this.orderService.eventPaymentZALOPAY(eventPaymentZALOPAYDto);
+  }
+
+  //! Frontend gọi để update trạng thái payment ZALOPAY
+  @MessagePattern('updateZALOPAYPaymentStatus')
+  async updateZALOPAYPaymentStatus(
+    updateZALOPAYPaymentStatusDto: UpdateZALOPAYPaymentStatusDto,
+  ): Promise<ISimpleResponse> {
+    return this.orderService.updateZALOPAYPaymentStatus(
+      updateZALOPAYPaymentStatusDto,
+    );
   }
 }
