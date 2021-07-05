@@ -1228,6 +1228,7 @@ export class OrderService {
           const embed_data = {
             redirecturl: `https://salechannel.herokuapp.com/order/${order.id}/payment-is-processing`,
             orderid: order.id,
+            bankgroup: 'ATM',
           };
 
           const zalopayItems = [{}];
