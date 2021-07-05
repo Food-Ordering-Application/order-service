@@ -1133,9 +1133,9 @@ export class OrderService {
           paymentMethod === PaymentMethod.PAYPAL ||
           paymentMethod === PaymentMethod.ZALOPAY
         ) {
-          payment.status = PaymentStatus.PENDING_USER_ACTION;
+          order.invoice.payment.status = PaymentStatus.PENDING_USER_ACTION;
         } else {
-          payment.status = PaymentStatus.PROCESSING;
+          order.invoice.payment.status = PaymentStatus.PROCESSING;
         }
         order.invoice.payment.method = paymentMethod;
         //* Update payment promise
