@@ -1283,7 +1283,7 @@ export class OrderService {
             return {
               status: HttpStatus.OK,
               message: 'Confirm order checkout successfully',
-              orderUrl: zaloPayResponse.data.orderUrl,
+              orderUrl: zaloPayResponse.data.order_url,
             };
           }
 
