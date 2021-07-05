@@ -1228,7 +1228,7 @@ export class OrderService {
           const embed_data = {
             redirecturl: `https://salechannel.herokuapp.com/order/${order.id}/payment-is-processing`,
             orderid: order.id,
-            bankgroup: 'ATM',
+            // bankgroup: 'ATM',
           };
 
           const zalopayItems = [{}];
@@ -1238,7 +1238,7 @@ export class OrderService {
           const zalopayOrder = {
             app_id: config.app_id,
             app_trans_id: `${moment().format('YYMMDD')}_${transID}`, // translation missing: vi.docs.shared.sample_code.comments.app_trans_id
-            app_user: 'user123',
+            app_user: 'user123' + Math.floor(Math.random() * 1000000),
             app_time: Date.now(), // miliseconds
             item: JSON.stringify(zalopayItems),
             embed_data: JSON.stringify(embed_data),
