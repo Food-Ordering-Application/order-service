@@ -9,7 +9,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { InjectConnection, InjectRepository } from '@nestjs/typeorm';
 import * as paypal from '@paypal/checkout-server-sdk';
 import axios from 'axios';
-import CryptoJS from 'crypto-js';
+import * as CryptoJS from 'crypto-js';
 import * as moment from 'moment';
 import * as momenttimezone from 'moment-timezone';
 import { throwError, TimeoutError } from 'rxjs';
