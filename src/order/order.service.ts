@@ -1950,6 +1950,7 @@ export class OrderService {
   }
 
   async handleAutoConfirmOrder(order: Order, queryRunner: QueryRunner) {
+    console.log('IN HandleAutoConfirm');
     order.status = OrdStatus.CONFIRMED;
     order.delivery.status = DeliveryStatus.ASSIGNING_DRIVER;
     order.delivery.orderTime = new Date();
@@ -1965,6 +1966,7 @@ export class OrderService {
       queryRunner.manager.save(Order, order),
       queryRunner.manager.save(Delivery, order.delivery),
     ]);
+    console.log('HandleAutoConfirm OK');
   }
 
   async getRestaurantStatistic(
@@ -2340,6 +2342,7 @@ export class OrderService {
       const order = await this.orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.invoice', 'invoice')
+        .leftJoinAndSelect('order.delivery', 'delivery')
         .leftJoinAndSelect('invoice.payment', 'payment')
         .where('order.id = :orderId', { orderId: orderId })
         .getOne();
@@ -2387,15 +2390,18 @@ export class OrderService {
                 }),
               )
               .toPromise();
+          console.log('isAutoConfirm', isAutoConfirm);
           const doesConfirmOrder = isAutoConfirm;
           if (doesConfirmOrder) {
             // order.cashierId = cashierId;
+            console.log('AUTOCONFIRM ORDER');
             await Promise.all([
               queryRunner.manager.save(Payment, order.invoice.payment),
               queryRunner.manager.save(Invoice, order.invoice),
               this.handleAutoConfirmOrder(order, queryRunner),
             ]);
           } else {
+            console.log('MERCHANT CONFIRM ORDER');
             await Promise.all([
               this.placeOrder(order, queryRunner),
               queryRunner.manager.save(Payment, order.invoice.payment),
@@ -2406,8 +2412,10 @@ export class OrderService {
           await queryRunner.commitTransaction();
 
           if (doesConfirmOrder) {
+            console.log('Send confirm order event');
             this.orderFulfillmentService.sendConfirmOrderEvent(order);
           } else {
+            console.log('send place order event');
             this.orderFulfillmentService.sendPlaceOrderEvent(order);
           }
         }

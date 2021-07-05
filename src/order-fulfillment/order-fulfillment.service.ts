@@ -69,10 +69,12 @@ export class OrderFulfillmentService {
   private readonly logger = new Logger('OrderFulfillmentService');
 
   async sendPlaceOrderEvent(order: Order) {
+    console.log('EMIT orderPlacedEvent');
     this.notificationServiceClient.emit(
       'orderPlacedEvent',
       filteredOrder(order, allowed),
     );
+    console.log('EMIT PLACEORDER OK');
     this.logger.log(order.id, 'noti: orderPlacedEvent');
   }
 
@@ -108,7 +110,9 @@ export class OrderFulfillmentService {
             ])
             .getOne(),
     );
+    console.log('EMIT orderConfirmedByRestaurantEvent');
     this.deliveryServiceClient.emit('orderConfirmedByRestaurantEvent', payload);
+    console.log('EMIT orderConfirmedByRestaurantEvent OK');
     this.logger.log(order.id, 'noti: orderConfirmedByRestaurantEvent');
   }
 
